@@ -1,6 +1,6 @@
 ﻿//Copyright(c) 2021 MultiFactor
 //Please see licence at 
-//https://github.com/MultifactorLab/MultiFactor.Ldap.Adapter/blob/main/LICENSE.md
+//https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Server.Authentication;
