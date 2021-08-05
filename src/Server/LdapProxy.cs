@@ -100,20 +100,12 @@ namespace MultiFactor.Ldap.Adapter.Server
             if (searchRequest != null)
             {
                 var filter = searchRequest.ChildAttributes[6];
-                if ((LdapFilterChoice)filter.ContextType == LdapFilterChoice.equalityMatch) // uid eq login
+                var user = SearchUserName(filter);
+
+                if (!string.IsNullOrEmpty(user))
                 {
-                    var left = filter.ChildAttributes[0].GetValue<string>()?.ToLower();
-                    var right = filter.ChildAttributes[1].GetValue<string>();
-
-                    var userNameAttrs = new[] { "cn", "uid", "samaccountname" };
-
-                    if (userNameAttrs.Any(attr => attr == left))
-                    {
-                        //user name lookup, from login to DN
-                        //lets remember
-                        _status = LdapProxyAuthenticationStatus.UserDnSearch;
-                        _lookupUserName = right;
-                    }
+                    _status = LdapProxyAuthenticationStatus.UserDnSearch;
+                    _lookupUserName = user;
                 }
             }
 
@@ -261,6 +253,34 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             //kerberos or not-implemented
             //_logger.Debug($"Unknown bind mechanism: {mechanism}");
+
+            return null;
+        }
+
+        private string SearchUserName(LdapAttribute attr)
+        {
+            var userNameAttrs = new[] { "cn", "uid", "samaccountname", "userprincipalname" };
+            var contextType = (LdapFilterChoice)attr.ContextType;
+
+            if (contextType == LdapFilterChoice.equalityMatch)
+            {
+                var left = attr.ChildAttributes[0].GetValue<string>()?.ToLower();
+                var right = attr.ChildAttributes[1].GetValue<string>();
+
+                if (userNameAttrs.Any(cn => cn == left))
+                {
+                    //user name lookup, from login to DN
+                    return right;
+                }
+            }
+            if (contextType == LdapFilterChoice.and)
+            {
+                foreach (var child in attr.ChildAttributes)
+                {
+                    var userName = SearchUserName(child);
+                    if (userName != null) return userName;
+                }
+            }
 
             return null;
         }
