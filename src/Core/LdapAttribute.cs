@@ -252,7 +252,11 @@ namespace MultiFactor.Ldap.Adapter.Core
                 var attribute = new LdapAttribute(tag);
                 if (tag.IsConstructed && attributeLength > 0)
                 {
-                    attribute.ChildAttributes = ParseAttributes(bytes, currentPosition, currentPosition + attributeLength);
+                    try
+                    {
+                        attribute.ChildAttributes = ParseAttributes(bytes, currentPosition, currentPosition + attributeLength);
+                    }
+                    catch { }
                 }
                 else
                 {
