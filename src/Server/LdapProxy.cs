@@ -273,7 +273,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     return right;
                 }
             }
-            if (contextType == LdapFilterChoice.and)
+            if (contextType == LdapFilterChoice.and || contextType == LdapFilterChoice.or)
             {
                 foreach (var child in attr.ChildAttributes)
                 {
