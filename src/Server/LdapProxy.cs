@@ -117,9 +117,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                 {
                     if (!string.IsNullOrEmpty(userName)) //empty userName means anonymous bind
                     {
-                        var uid = ConvertDistinguishedNameToUserName(userName);
-
-                        if (_configuration.ServiceAccounts.Any(acc => acc == uid.ToLower()))
+                        if (IsServiceAccount(userName))
                         {
                             //service acc
                             _logger.Debug($"Received {authentication.MechanismName} bind request for service account '{userName}' from {_clientConnection.Client.RemoteEndPoint}");
@@ -127,7 +125,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                         else
                         {
                             //user acc
-                            _userName = uid;
+                            _userName = ConvertDistinguishedNameToUserName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
                             _logger.Debug($"Received {authentication.MechanismName} bind request for user '{userName}' from {_clientConnection.Client.RemoteEndPoint}");
                         }
@@ -290,6 +288,24 @@ namespace MultiFactor.Ldap.Adapter.Server
             var responsePacket = new LdapPacket(requestPacket.MessageId);
             responsePacket.ChildAttributes.Add(new LdapResultAttribute(LdapOperation.BindResponse, LdapResult.invalidCredentials));
             return responsePacket;
+        }
+
+        private bool IsServiceAccount(string userName)
+        {
+            if (_configuration.ServiceAccounts.Any(acc => acc == userName.ToLower()))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(_configuration.ServiceAccountsOrganizationUnit))
+            {
+                if (userName.Contains(_configuration.ServiceAccountsOrganizationUnit, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

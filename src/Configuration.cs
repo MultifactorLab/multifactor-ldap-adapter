@@ -56,6 +56,11 @@ namespace MultiFactor.Ldap.Adapter
         /// Service accounts list - bind requests from its will be ignored
         /// </summary>
         public string[] ServiceAccounts { get; set; }
+
+        /// <summary>
+        /// Service accounts OU - bind requests with this OU will be ignored
+        /// </summary>
+        public string ServiceAccountsOrganizationUnit { get; set; }
         
         #endregion
 
@@ -113,6 +118,7 @@ namespace MultiFactor.Ldap.Adapter
             var logLevelSetting = appSettings["logging-level"];
 
             var serviceAccountsSetting = appSettings["ldap-service-accounts"];
+            var serviceAccountsOrganizationUnitSetting = appSettings["ldap-service-accounts-ou"];
 
             if (string.IsNullOrEmpty(ldapServerSetting))
             {
@@ -144,7 +150,8 @@ namespace MultiFactor.Ldap.Adapter
                 ApiProxy = apiProxySetting,
                 NasIdentifier = nasIdentifierSetting,
                 MultiFactorSharedSecret = multiFactorSharedSecretSetting,
-                LogLevel = logLevelSetting
+                LogLevel = logLevelSetting,
+                ServiceAccountsOrganizationUnit = serviceAccountsOrganizationUnitSetting
             };
 
             if (!string.IsNullOrEmpty(adapterLdapEndpointSetting))
