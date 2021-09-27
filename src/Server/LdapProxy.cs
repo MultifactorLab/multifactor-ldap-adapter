@@ -297,9 +297,9 @@ namespace MultiFactor.Ldap.Adapter.Server
                 return true;
             }
 
-            if (!string.IsNullOrEmpty(_configuration.ServiceAccountsOrganizationUnit))
+            if (_configuration.ServiceAccountsOrganizationUnit != null)
             {
-                if (userName.Contains(_configuration.ServiceAccountsOrganizationUnit, StringComparison.InvariantCultureIgnoreCase))
+                if (_configuration.ServiceAccountsOrganizationUnit.Any(ou => userName.Contains(ou, StringComparison.InvariantCultureIgnoreCase)))
                 {
                     return true;
                 }
