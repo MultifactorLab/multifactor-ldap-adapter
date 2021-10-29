@@ -196,6 +196,8 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                     if (_lookupUserName != null && userDn != null)
                     {
+                        userDn = userDn.ToLower(); //becouse some apps do it
+                        
                         _usersDn.TryRemove(userDn, out _);
                         _usersDn.TryAdd(userDn, _lookupUserName);
                     }
@@ -207,16 +209,18 @@ namespace MultiFactor.Ldap.Adapter.Server
             return (data, length);  //just proxy
         }
 
-        private string ConvertDistinguishedNameToUserName(string name)
+        private string ConvertDistinguishedNameToUserName(string dn)
         {
-            if (string.IsNullOrEmpty(name)) return name;
+            if (string.IsNullOrEmpty(dn)) return dn;
 
-            if (_usersDn.TryGetValue(name, out var userName))
+            dn = dn.ToLower();
+
+            if (_usersDn.TryGetValue(dn, out var userName))
             {
                 return userName;
             }
 
-            return name;
+            return dn;
         }
 
         private BindAuthentication LoadAuthentication(LdapAttribute bindRequest)
