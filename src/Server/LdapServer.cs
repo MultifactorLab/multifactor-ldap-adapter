@@ -105,7 +105,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
             catch(Exception ex)
             {
-                _logger.Error(ex, "Connection error");
+                _logger.Error(ex, $"Error while connecting to {_remoteEndPoint.Host}:{_remoteEndPoint.Port}");
             }
             finally
             {

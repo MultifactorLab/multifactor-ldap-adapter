@@ -228,26 +228,10 @@ namespace MultiFactor.Ldap.Adapter
 
         #region static members
 
-        /// <summary>
-        /// Windows service unit name
-        /// </summary>
-        public static string ServiceUnitName
+        public static string GetLogFormat()
         {
-            get
-            {
-                return ConfigurationManager.AppSettings["service-unit-name"] ?? "MFLdapAdapter";
-            }
-        }
-
-        /// <summary>
-        /// Windows service display name
-        /// </summary>
-        public static string ServiceDisplayName
-        {
-            get
-            {
-                return ConfigurationManager.AppSettings["service-display-name"] ?? "MultiFactor Ldap Adapter";
-            }
+            var appSettings = ConfigurationManager.AppSettings;
+            return appSettings?["logging-format"];
         }
 
         #endregion

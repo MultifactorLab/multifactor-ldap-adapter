@@ -7,6 +7,8 @@ using MultiFactor.Ldap.Adapter.Services;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Formatting;
+using Serilog.Formatting.Compact;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -61,10 +63,22 @@ namespace MultiFactor.Ldap.Adapter
             //create logging
             var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
             var loggerConfiguration = new LoggerConfiguration()
-                .MinimumLevel.ControlledBy(levelSwitch)
-                .WriteTo.Console(LogEventLevel.Debug)
-                .WriteTo.File($"{path}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
+                .MinimumLevel.ControlledBy(levelSwitch);
 
+            var formatter = GetLogFormatter();
+            if (formatter != null)
+            {
+                loggerConfiguration
+                    .WriteTo.Console(formatter)
+                    .WriteTo.File(formatter, $"{path}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
+            }
+            else
+            {
+                loggerConfiguration
+                    .WriteTo.Console()
+                    .WriteTo.File($"{path}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
+            }
+            
             Log.Logger = loggerConfiguration.CreateLogger();
 
             //init configuration
@@ -126,7 +140,7 @@ namespace MultiFactor.Ldap.Adapter
                 var data = cert.Export(X509ContentType.Pfx);
                 File.WriteAllBytes(certPath, data);
 
-                logger.Information($"Self-signed certificate saved to {certPath}");
+                logger.Information($"Self-signed certificate with subject CN={subj} saved to {certPath}");
 
                 configuration.X509Certificate = cert;
             }
@@ -136,7 +150,6 @@ namespace MultiFactor.Ldap.Adapter
                 configuration.X509Certificate = new X509Certificate2(certPath);
             }
         }
-
 
         private static string FlattenException(Exception exception)
         {
@@ -157,6 +170,18 @@ namespace MultiFactor.Ldap.Adapter
             }
 
             return stringBuilder.ToString();
+        }
+
+        private static ITextFormatter GetLogFormatter()
+        {
+            var format = Configuration.GetLogFormat();
+            switch (format?.ToLower())
+            {
+                case "json":
+                    return new RenderedCompactJsonFormatter();
+                default:
+                    return null;
+            }
         }
     }
 }

@@ -47,13 +47,13 @@ namespace MultiFactor.Ldap.Adapter.Server
             var from = _clientConnection.Client.RemoteEndPoint.ToString();
             var to = _serverConnection.Client.RemoteEndPoint.ToString();
 
-            _logger.Debug($"Opened {from} => {to}");
+            _logger.Debug("Opened {client} => {server}", from, to);
 
             await Task.WhenAny(
                 DataExchange(_clientConnection, _clientStream, _serverConnection, _serverStream, ParseAndProcessRequest),
                 DataExchange(_serverConnection, _serverStream, _clientConnection, _clientStream, ParseAndProcessResponse));
 
-            _logger.Debug($"Closed {from} => {to}");
+            _logger.Debug("Closed {client} => {server}", from, to);
         }
 
         private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, (byte[], int)> process)
@@ -88,7 +88,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"Data exchange error from {source.Client.RemoteEndPoint} to {target.Client.RemoteEndPoint}");
+                _logger.Error(ex, "Data exchange error from {client} to {server}", source.Client.RemoteEndPoint, target.Client.RemoteEndPoint);
             }
         }
 
@@ -120,14 +120,14 @@ namespace MultiFactor.Ldap.Adapter.Server
                         if (IsServiceAccount(userName))
                         {
                             //service acc
-                            _logger.Debug($"Received {authentication.MechanismName} bind request for service account '{userName}' from {_clientConnection.Client.RemoteEndPoint}");
+                            _logger.Debug($"Received {authentication.MechanismName} bind request for service account '{{user:l}}' from {{client}}", userName, _clientConnection.Client.RemoteEndPoint);
                         }
                         else
                         {
                             //user acc
                             _userName = ConvertDistinguishedNameToUserName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
-                            _logger.Debug($"Received {authentication.MechanismName} bind request for user '{userName}' from {_clientConnection.Client.RemoteEndPoint}");
+                            _logger.Debug($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}}", userName, _clientConnection.Client.RemoteEndPoint);
                         }
                     }
                 }
@@ -155,7 +155,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                     if (bound)  //first factor authenticated
                     {
-                        _logger.Information($"User '{_userName}' credential verified successfully at {_serverConnection.Client.RemoteEndPoint}");
+                        _logger.Information("User '{user:l}' credential verified successfully at {server}", _userName, _serverConnection.Client.RemoteEndPoint);
 
                         var apiClient = new MultiFactorApiClient(_configuration, _logger);
                         var result = apiClient.Authenticate(_userName); //second factor
@@ -166,8 +166,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             var responsePacket = InvalidCredentials(packet);
                             var response = responsePacket.GetBytes();
 
-                            _logger.Warning($"Second factor authentication for user '{_userName}' failed");
-                            _logger.Debug($"Sent invalid credential response for user '{_userName}' to {_clientConnection.Client.RemoteEndPoint}");
+                            _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
 
                             _status = LdapProxyAuthenticationStatus.AuthenticationFailed;
 
@@ -180,7 +179,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         //just log
                         var reason = bindResponse.ChildAttributes[2].GetValue<string>();
-                        _logger.Warning($"Verification user '{_userName}' at {_serverConnection.Client.RemoteEndPoint} failed: {reason}");
+                        _logger.Warning("Verification user '{user:l}' at {server} failed: {reason}", _userName, _serverConnection.Client.RemoteEndPoint, reason);
                     }
                 }
             }
@@ -251,7 +250,6 @@ namespace MultiFactor.Ldap.Adapter.Server
                     return new SpnegoNtlmBindAuthentication(_logger);
                 }
             }
-
 
             //kerberos or not-implemented
             //_logger.Debug($"Unknown bind mechanism: {mechanism}");

@@ -42,7 +42,14 @@ namespace MultiFactor.Ldap.Adapter.Services
 
             if (response.Granted && !response.Bypassed)
             {
-                _logger.Information($"Second factor for user '{userName}' verified successfully");
+                _logger.Information("Second factor for user '{user:l}' verified successfully. Authenticator '{authenticator:l}', account '{account:l}'", userName, response?.Authenticator, response?.Account);
+            }
+
+            if (response.Denied)
+            {
+                var reason = response?.ReplyMessage;
+                var phone = response?.Phone;
+                _logger.Warning("Second factor verification for user '{user:l}' failed with reason='{reason:l}'. User phone {phone:l}", userName, reason, phone);
             }
 
             return response.Granted;
@@ -118,11 +125,16 @@ namespace MultiFactor.Ldap.Adapter.Services
     public class MultiFactorAccessRequest
     {
         public string Id { get; set; }
+        public string Identity { get; set; }
+        public string Phone { get; set; }
         public string Status { get; set; }
         public string ReplyMessage { get; set; }
         public bool Bypassed { get; set; }
+        public string Authenticator { get; set; }
+        public string Account { get; set; }
 
         public bool Granted => Status == "Granted";
+        public bool Denied => Status == "Denied";
 
         public static MultiFactorAccessRequest Bypass
         {
