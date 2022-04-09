@@ -25,11 +25,13 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Core
 {
     public class LdapPacket : LdapAttribute
-    {        
+    {
         public Int32 MessageId => ChildAttributes[0].GetValue<Int32>();
 
 
@@ -58,11 +60,11 @@ namespace MultiFactor.Ldap.Adapter.Core
         /// </summary>
         /// <param name="bytes"></param>
         /// <returns></returns>
-        public static LdapPacket ParsePacket(Byte[] bytes)
+        public static async Task<LdapPacket> ParsePacket(Byte[] bytes)
         {
             var packet = new LdapPacket(Tag.Parse(bytes[0]));
-            var contentLength = Utils.BerLengthToInt(bytes, 1, out var lengthBytesCount);
-            packet.ChildAttributes.AddRange(ParseAttributes(bytes, 1 + lengthBytesCount, contentLength));
+            var berLen = await Utils.BerLengthToInt(bytes, 1);
+            packet.ChildAttributes.AddRange(await ParseAttributes(bytes, 1 + berLen.BerByteCount, berLen.Length));
             return packet;
         }
 
@@ -73,21 +75,27 @@ namespace MultiFactor.Ldap.Adapter.Core
         /// <param name="stream"></param>
         /// <param name="packet"></param>
         /// <returns>True if succesful. False if parsing fails or stream is empty</returns>
-        public static Boolean TryParsePacket(Stream stream, out LdapPacket packet)
+        public static async Task<LdapPacket> ParsePacket(Stream stream)
         {
             try
             {
-                var tagByte = new Byte[1];
-                var i = stream.Read(tagByte, 0, 1);
+                var tagByte = new byte[1];
+                var i = await stream.ReadAsync(tagByte, 0, 1);
                 if (i != 0)
                 {
-                    var contentLength = Utils.BerLengthToInt(stream, out int n);
-                    var contentBytes = new Byte[contentLength];
-                    stream.Read(contentBytes, 0, contentLength);
+                    var contentLength = await Utils.BerLengthToInt(stream);
+                    var contentBytes = new byte[contentLength.Length];
+                    await stream.ReadAsync(contentBytes, 0, contentLength.Length);
 
-                    packet = new LdapPacket(Tag.Parse(tagByte[0]));
-                    packet.ChildAttributes.AddRange(ParseAttributes(contentBytes, 0, contentLength));
-                    return true;
+                    var packet = new LdapPacket(Tag.Parse(tagByte[0]));
+                    packet.ChildAttributes.AddRange(await ParseAttributes(contentBytes, 0, contentLength.Length));
+
+                    if (packet.ChildAttributes.Any(attr => attr.LdapOperation == Core.LdapOperation.SearchResultDone))
+                    {
+                        return null; //thats all, stop reading
+                    }
+
+                    return packet;
                 }
             }
             catch
@@ -96,8 +104,7 @@ namespace MultiFactor.Ldap.Adapter.Core
                 //Trace.TraceError($"Could not parse packet from stream {ex.Message}");                
             }
 
-            packet = null;
-            return false;
+            return null;
         }
     }
 }

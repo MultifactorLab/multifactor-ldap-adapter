@@ -28,6 +28,7 @@ using System.Collections;
 using System.Text;
 using System.Linq;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Core
 {
@@ -120,10 +121,10 @@ namespace MultiFactor.Ldap.Adapter.Core
         /// <param name="offset">Offset where the BER encoded length is located</param>
         /// <param name="berByteCount">Number of bytes used to represent BER encoded length</param>
         /// <returns></returns>
-        public static Int32 BerLengthToInt(Byte[] bytes, Int32 offset, out Int32 berByteCount)
+        public static async Task<BerLen> BerLengthToInt(Byte[] bytes, Int32 offset)
         {
             var stream = new MemoryStream(bytes, offset, bytes.Length - offset, false);
-            return BerLengthToInt(stream, out berByteCount);
+            return await BerLengthToInt(stream);
         }
 
 
@@ -133,18 +134,18 @@ namespace MultiFactor.Ldap.Adapter.Core
         /// <param name="stream">Stream at position where BER length should be found</param>
         /// <param name="berByteCount">Number of bytes used to represent BER encoded length</param>
         /// <returns></returns>
-        public static Int32 BerLengthToInt(Stream stream, out Int32 berByteCount)
+        public static async Task<BerLen> BerLengthToInt(Stream stream)
         {
-            berByteCount = 1;   // The minimum length of a ber encoded length is 1 byte
+            var berByteCount = 1;   // The minimum length of a ber encoded length is 1 byte
             int attributeLength = 0;
             var berByte = new Byte[1];
-            stream.Read(berByte, 0, 1);
+            await stream.ReadAsync(berByte, 0, 1);
             if (berByte[0] >> 7 == 1)    // Long notation, first byte tells us how many bytes are used for the length
             {
                 var lengthoflengthbytes = berByte[0] & 127;
                 var lengthBytes = new Byte[lengthoflengthbytes];
-                stream.Read(lengthBytes, 0, lengthoflengthbytes);
-                Array.Reverse(lengthBytes);                           
+                await stream.ReadAsync(lengthBytes, 0, lengthoflengthbytes);
+                Array.Reverse(lengthBytes);
                 Array.Resize(ref lengthBytes, 4);   // this will of course explode if length is larger than a 32 bit integer
                 attributeLength = BitConverter.ToInt32(lengthBytes, 0);
                 berByteCount += lengthoflengthbytes;
@@ -154,7 +155,7 @@ namespace MultiFactor.Ldap.Adapter.Core
                 attributeLength = berByte[0] & 127;
             }
 
-            return attributeLength;
+            return new BerLen { Length = attributeLength, BerByteCount = berByteCount };
         }
 
 

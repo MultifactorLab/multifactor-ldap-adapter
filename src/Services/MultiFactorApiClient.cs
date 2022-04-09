@@ -8,6 +8,7 @@ using Serilog;
 using System;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Services
 {
@@ -25,7 +26,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public bool Authenticate(string userName)
+        public async Task<bool> Authenticate(string userName)
         {
             var url = _configuration.ApiUrl + "/access/requests/la";
             var payload = new
@@ -33,7 +34,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 Identity = userName,
             };
 
-            var response = SendRequest(url, payload);
+            var response = await SendRequest(url, payload);
 
             if (response == null)
             {
@@ -55,7 +56,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             return response.Granted;
         }
 
-        private MultiFactorAccessRequest SendRequest(string url, object payload)
+        private async Task<MultiFactorAccessRequest> SendRequest(string url, object payload)
         {
             try
             {
@@ -84,7 +85,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                         web.Proxy = new WebProxy(_configuration.ApiProxy);
                     }
 
-                    responseData = web.UploadData(url, "POST", requestData);
+                    responseData = await web.UploadDataTaskAsync(url, "POST", requestData);
                 }
 
                 json = Encoding.UTF8.GetString(responseData);

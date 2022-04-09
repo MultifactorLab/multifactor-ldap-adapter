@@ -61,7 +61,17 @@ namespace MultiFactor.Ldap.Adapter
         /// Service accounts OU - bind requests with this OU will be ignored
         /// </summary>
         public string[] ServiceAccountsOrganizationUnit { get; set; }
-        
+
+        /// <summary>
+        /// Only members of this group allowed to access (Optional)
+        /// </summary>
+        public string ActiveDirectoryGroup { get; set; }
+
+        /// <summary>
+        /// Only members of this group required to pass 2fa to access (Optional)
+        /// </summary>
+        public string ActiveDirectory2FaGroup { get; set; }
+
         #endregion
 
         #region API settings
@@ -120,6 +130,9 @@ namespace MultiFactor.Ldap.Adapter
             var serviceAccountsSetting = appSettings["ldap-service-accounts"];
             var serviceAccountsOrganizationUnitSetting = appSettings["ldap-service-accounts-ou"];
 
+            var activeDirectoryGroupSetting = appSettings["active-directory-group"];
+            var activeDirectory2FaGroupSetting = appSettings["active-directory-2fa-group"];
+
             if (string.IsNullOrEmpty(ldapServerSetting))
             {
                 throw new Exception("Configuration error: 'ldap-server' element not found");
@@ -151,6 +164,8 @@ namespace MultiFactor.Ldap.Adapter
                 NasIdentifier = nasIdentifierSetting,
                 MultiFactorSharedSecret = multiFactorSharedSecretSetting,
                 LogLevel = logLevelSetting,
+                ActiveDirectoryGroup = activeDirectoryGroupSetting,
+                ActiveDirectory2FaGroup = activeDirectory2FaGroupSetting
             };
 
             if (!string.IsNullOrEmpty(adapterLdapEndpointSetting))
@@ -235,5 +250,12 @@ namespace MultiFactor.Ldap.Adapter
         }
 
         #endregion
+
+        public bool CheckUserGroups()
+        {
+            return
+                !string.IsNullOrEmpty(ActiveDirectoryGroup) ||
+                !string.IsNullOrEmpty(ActiveDirectory2FaGroup);
+        }
     }
 }

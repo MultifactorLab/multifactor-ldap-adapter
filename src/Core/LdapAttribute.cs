@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Core
 {
@@ -239,33 +240,33 @@ namespace MultiFactor.Ldap.Adapter.Core
         /// <param name="currentPosition"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        protected static List<LdapAttribute> ParseAttributes(Byte[] bytes, Int32 currentPosition, Int32 length)
+        protected static async Task<List<LdapAttribute>> ParseAttributes(Byte[] bytes, Int32 currentPosition, Int32 length)
         {
             var list = new List<LdapAttribute>();
             while (currentPosition < length)
             {
                 var tag = Tag.Parse(bytes[currentPosition]);
                 currentPosition++;
-                var attributeLength = Utils.BerLengthToInt(bytes, currentPosition, out int i);
-                currentPosition += i;
+                var berLen = await Utils.BerLengthToInt(bytes, currentPosition);
+                currentPosition += berLen.BerByteCount;
 
                 var attribute = new LdapAttribute(tag);
-                if (tag.IsConstructed && attributeLength > 0)
+                if (tag.IsConstructed && berLen.Length > 0)
                 {
                     try
                     {
-                        attribute.ChildAttributes = ParseAttributes(bytes, currentPosition, currentPosition + attributeLength);
+                        attribute.ChildAttributes = await ParseAttributes(bytes, currentPosition, currentPosition + berLen.Length);
                     }
                     catch { }
                 }
                 else
                 {
-                    attribute.Value = new Byte[attributeLength];
-                    Buffer.BlockCopy(bytes, currentPosition, attribute.Value, 0, attributeLength);
+                    attribute.Value = new Byte[berLen.Length];
+                    Buffer.BlockCopy(bytes, currentPosition, attribute.Value, 0, berLen.Length);
                 }
                 list.Add(attribute);
 
-                currentPosition += attributeLength;
+                currentPosition += berLen.Length;
             }
             return list;
         }

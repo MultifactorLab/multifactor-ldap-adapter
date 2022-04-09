@@ -11,7 +11,6 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Server
@@ -27,9 +26,12 @@ namespace MultiFactor.Ldap.Adapter.Server
         private string _userName;
         private string _lookupUserName;
 
+        private LdapService _ldapService;
+
         private LdapProxyAuthenticationStatus _status;
 
-        private static readonly ConcurrentDictionary<string, string> _usersDn = new ConcurrentDictionary<string, string>();
+        private static readonly ConcurrentDictionary<string, string> _usersDn2Cn = new ConcurrentDictionary<string, string>();
+        private static readonly ConcurrentDictionary<string, string> _usersCn2Dn = new ConcurrentDictionary<string, string>();
 
         public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, Configuration configuration, ILogger logger)
         {
@@ -40,6 +42,8 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+            _ldapService = new LdapService(logger);
         }
 
         public async Task Start()
@@ -56,12 +60,12 @@ namespace MultiFactor.Ldap.Adapter.Server
             _logger.Debug("Closed {client} => {server}", from, to);
         }
 
-        private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, (byte[], int)> process)
+        private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, Task<(byte[], int)>> process)
         {
             try
             {
                 var bytesRead = 0;
-                var requestData = new byte[8192];
+                var requestData = new byte[8192];   //enough for bind request/result
 
                 do
                 {
@@ -69,7 +73,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     bytesRead = await sourceStream.ReadAsync(requestData, 0, requestData.Length);
 
                     //process
-                    var response = process(requestData, bytesRead);
+                    var response = await process(requestData, bytesRead);
 
                     //write
                     await targetStream.WriteAsync(response.Item1, 0, response.Item2);
@@ -81,7 +85,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                 } while (bytesRead != 0);
             }
-            catch(IOException)
+            catch (IOException)
             {
                 //connection closed unexpectly
                 //_logger.Debug(ioex, "proxy");
@@ -92,9 +96,9 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
         }
 
-        private (byte[], int) ParseAndProcessRequest(byte[] data, int length)
+        private async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
         {
-            var packet = LdapPacket.ParsePacket(data);
+            var packet = await LdapPacket.ParsePacket(data);
 
             var searchRequest = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.SearchRequest);
             if (searchRequest != null)
@@ -125,7 +129,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                         else
                         {
                             //user acc
-                            _userName = ConvertDistinguishedNameToUserName(userName);
+                            _userName = ConvertDistinguishedNameToCommonName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
                             _logger.Debug($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}}", userName, _clientConnection.Client.RemoteEndPoint);
                         }
@@ -133,16 +137,16 @@ namespace MultiFactor.Ldap.Adapter.Server
                 }
             }
 
-            return (data, length);
+            return await Task.FromResult((data, length));
         }
 
-        private (byte[], int) ParseAndProcessResponse(byte[] data, int length)
+        private async Task<(byte[], int)> ParseAndProcessResponse(byte[] data, int length)
         {
             if (_status == LdapProxyAuthenticationStatus.BindRequested)
             {
-                var packet = LdapPacket.ParsePacket(data);
+                var packet = await LdapPacket.ParsePacket(data);
                 var bindResponse = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.BindResponse);
-            
+
                 if (bindResponse != null)
                 {
                     var bindResult = bindResponse.ChildAttributes[0].GetValue<LdapResult>();
@@ -157,20 +161,69 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         _logger.Information("User '{user:l}' credential verified successfully at {server}", _userName, _serverConnection.Client.RemoteEndPoint);
 
-                        var apiClient = new MultiFactorApiClient(_configuration, _logger);
-                        var result = apiClient.Authenticate(_userName); //second factor
+                        var bypass = false;
 
-                        if (!result) // second factor failed
+                        if (_configuration.CheckUserGroups())
                         {
-                            //return invalid creds response
-                            var responsePacket = InvalidCredentials(packet);
-                            var response = responsePacket.GetBytes();
+                            var userDn = ConvertCommonNameToDistinguishedName(_userName);
+                            var groups = await _ldapService.GetAllGroups(_serverStream, userDn);
 
-                            _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
+                            //check ACL
+                            if (!string.IsNullOrEmpty(_configuration.ActiveDirectoryGroup))
+                            {
+                                if (!groups.Contains(_configuration.ActiveDirectoryGroup, StringComparer.InvariantCultureIgnoreCase))
+                                {
+                                    _logger.Warning($"User '{{user:l}}' is not member of '{_configuration.ActiveDirectoryGroup}' group in {LdapService.BaseDn(userDn)}", _userName);
+                                    //return invalid creds response
+                                    var responsePacket = InvalidCredentials(packet);
+                                    var response = responsePacket.GetBytes();
 
-                            _status = LdapProxyAuthenticationStatus.AuthenticationFailed;
+                                    _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
 
-                            return (response, response.Length);
+                                    _status = LdapProxyAuthenticationStatus.AuthenticationFailed;
+
+                                    return (response, response.Length);
+                                }
+                                else
+                                {
+                                    _logger.Debug($"User '{{user:l}}' is member of '{_configuration.ActiveDirectoryGroup}' group in {LdapService.BaseDn(userDn)}", _userName);
+                                }
+                            }
+
+                            //check if mfa is mandatory
+                            if (!string.IsNullOrEmpty(_configuration.ActiveDirectory2FaGroup))
+                            {
+                                if (groups.Contains(_configuration.ActiveDirectory2FaGroup, StringComparer.InvariantCultureIgnoreCase))
+                                {
+                                    _logger.Debug($"User '{{user:l}}' is member of '{_configuration.ActiveDirectory2FaGroup}' group in {LdapService.BaseDn(userDn)}", _userName);
+                                }
+                                else
+                                {
+                                    _logger.Debug($"User '{{user:l}}' is not member of '{_configuration.ActiveDirectory2FaGroup}' group in {LdapService.BaseDn(userDn)}", _userName);
+                                    _logger.Information("Bypass second factor for user '{user:l}'", _userName);
+                                    bypass = true;
+                                }
+                            }
+
+                        }
+
+                        if (!bypass)
+                        {
+                            var apiClient = new MultiFactorApiClient(_configuration, _logger);
+                            var result = await apiClient.Authenticate(_userName); //second factor
+
+                            if (!result) // second factor failed
+                            {
+                                //return invalid creds response
+                                var responsePacket = InvalidCredentials(packet);
+                                var response = responsePacket.GetBytes();
+
+                                _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
+
+                                _status = LdapProxyAuthenticationStatus.AuthenticationFailed;
+
+                                return (response, response.Length);
+                            }
                         }
 
                         _status = LdapProxyAuthenticationStatus.None;
@@ -186,9 +239,9 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             if (_status == LdapProxyAuthenticationStatus.UserDnSearch)
             {
-                var packet = LdapPacket.ParsePacket(data);
+                var packet = await LdapPacket.ParsePacket(data);
                 var searchResultEntry = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.SearchResultEntry);
-                
+
                 if (searchResultEntry != null)
                 {
                     var userDn = searchResultEntry.ChildAttributes[0].GetValue<string>();
@@ -196,9 +249,12 @@ namespace MultiFactor.Ldap.Adapter.Server
                     if (_lookupUserName != null && userDn != null)
                     {
                         userDn = userDn.ToLower(); //becouse some apps do it
-                        
-                        _usersDn.TryRemove(userDn, out _);
-                        _usersDn.TryAdd(userDn, _lookupUserName);
+
+                        _usersDn2Cn.TryRemove(userDn, out _);
+                        _usersDn2Cn.TryAdd(userDn, _lookupUserName);
+
+                        _usersCn2Dn.TryRemove(_lookupUserName, out _);
+                        _usersCn2Dn.TryAdd(_lookupUserName, userDn);
                     }
                 }
 
@@ -208,18 +264,30 @@ namespace MultiFactor.Ldap.Adapter.Server
             return (data, length);  //just proxy
         }
 
-        private string ConvertDistinguishedNameToUserName(string dn)
+        private string ConvertDistinguishedNameToCommonName(string dn)
         {
             if (string.IsNullOrEmpty(dn)) return dn;
 
             dn = dn.ToLower();
 
-            if (_usersDn.TryGetValue(dn, out var userName))
+            if (_usersDn2Cn.TryGetValue(dn, out var cn))
             {
-                return userName;
+                return cn;
             }
 
             return dn;
+        }
+
+        private string ConvertCommonNameToDistinguishedName(string cn)
+        {
+            if (string.IsNullOrEmpty(cn)) return cn;
+
+            if (_usersCn2Dn.TryGetValue(cn, out var dn))
+            {
+                return dn;
+            }
+
+            return cn;
         }
 
         private BindAuthentication LoadAuthentication(LdapAttribute bindRequest)
@@ -236,12 +304,12 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
 
             var mechanism = authPacket.ChildAttributes[0].GetValue<string>();
-            
+
             if (mechanism == "DIGEST-MD5")
             {
                 return new DigestMd5BindAuthentication(_logger);
             }
-            
+
             if (mechanism == "GSS-SPNEGO")
             {
                 var saslPacket = authPacket.ChildAttributes[1].Value;
@@ -250,6 +318,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     return new SpnegoNtlmBindAuthentication(_logger);
                 }
             }
+
 
             //kerberos or not-implemented
             //_logger.Debug($"Unknown bind mechanism: {mechanism}");
@@ -301,7 +370,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             if (_configuration.ServiceAccountsOrganizationUnit != null)
             {
-                if (_configuration.ServiceAccountsOrganizationUnit.Any(ou => userName.Contains(ou, StringComparison.InvariantCultureIgnoreCase)))
+                if (_configuration.ServiceAccountsOrganizationUnit.Any(ou => userName.ToLower().Contains(ou)))
                 {
                     return true;
                 }
