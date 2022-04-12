@@ -57,7 +57,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, baseDn)); //base dn
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)2));    //scope: subtree
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)0));    //aliases: never
-            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)100));     //size limit: 255
+            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)255));     //size limit: 255
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)60));      //time limit: 60
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Boolean, true));          //typesOnly: true
 
