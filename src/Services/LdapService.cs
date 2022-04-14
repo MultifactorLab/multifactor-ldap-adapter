@@ -101,11 +101,18 @@ namespace MultiFactor.Ldap.Adapter.Services
 
         private IEnumerable<string> GetGroups(LdapPacket packet)
         {
+            var groups = new List<string>();
+
             foreach (var searchResultEntry in packet.ChildAttributes.FindAll(attr => attr.LdapOperation == LdapOperation.SearchResultEntry))
             {
-                var group = searchResultEntry.ChildAttributes[0].GetValue<string>();
-                yield return DnToCn(group);
+                if (searchResultEntry.ChildAttributes.Count > 0)
+                {
+                    var group = searchResultEntry.ChildAttributes[0].GetValue<string>();
+                    groups.Add(DnToCn(group));
+                }
             }
+
+            return groups;
         }
 
         /// <summary>
