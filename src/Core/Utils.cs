@@ -144,7 +144,13 @@ namespace MultiFactor.Ldap.Adapter.Core
             {
                 var lengthoflengthbytes = berByte[0] & 127;
                 var lengthBytes = new Byte[lengthoflengthbytes];
-                await stream.ReadAsync(lengthBytes, 0, lengthoflengthbytes);
+
+                int bytesRead = 0;
+                while (bytesRead < lengthoflengthbytes)
+                {
+                    bytesRead += await stream.ReadAsync(lengthBytes, bytesRead, lengthoflengthbytes - bytesRead);
+                }
+
                 Array.Reverse(lengthBytes);
                 Array.Resize(ref lengthBytes, 4);   // this will of course explode if length is larger than a 32 bit integer
                 attributeLength = BitConverter.ToInt32(lengthBytes, 0);

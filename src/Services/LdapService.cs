@@ -31,7 +31,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 _logger.Error($"Can't query groups for user {userName}. Expected DistinguishedName.");
                 return new string[0];
             }
-            
+
             var request = CreateMemberOfRequest(userName);
             var requestData = request.GetBytes();
             await ldapConnectedStream.WriteAsync(requestData, 0, requestData.Length);
@@ -65,7 +65,7 @@ namespace MultiFactor.Ldap.Adapter.Services
 
             filter.ChildAttributes.Add(new LdapAttribute(1, "1.2.840.113556.1.4.1941"));    //AD filter
             filter.ChildAttributes.Add(new LdapAttribute(2, "member"));
-            filter.ChildAttributes.Add(new LdapAttribute(3, userName)); 
+            filter.ChildAttributes.Add(new LdapAttribute(3, userName));
             filter.ChildAttributes.Add(new LdapAttribute(4, (byte)0));
 
             searchRequest.ChildAttributes.Add(filter);
@@ -78,25 +78,6 @@ namespace MultiFactor.Ldap.Adapter.Services
             searchRequest.ChildAttributes.Add(attrList);
 
             return packet;
-        }
-
-        private static void Dump(LdapAttribute attr, int depth)
-        {
-            var tab = new string('\t', depth);
-
-            //var value = string.Empty;
-            //if (attr..Value is byte[] && attr.DataType == UniversalDataType.OctetString || attr.DataType == null)
-            //{
-            //    //value = Utils.ByteArrayToString(attr.Value);
-            //    value = Encoding.UTF8.GetString(attr.Value);
-            //}
-
-            Console.WriteLine($"{tab}{attr.LdapOperation} Class:{attr.Class} ContextType:{attr.ContextType} DataType:{attr.DataType} Value: {attr.GetValue()} ({attr.Value.Length})");
-
-            foreach (var child in attr.ChildAttributes)
-            {
-                Dump(child, depth + 1);
-            }
         }
 
         private IEnumerable<string> GetGroups(LdapPacket packet)

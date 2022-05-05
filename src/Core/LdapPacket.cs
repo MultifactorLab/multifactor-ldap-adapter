@@ -85,7 +85,12 @@ namespace MultiFactor.Ldap.Adapter.Core
                 {
                     var contentLength = await Utils.BerLengthToInt(stream);
                     var contentBytes = new byte[contentLength.Length];
-                    await stream.ReadAsync(contentBytes, 0, contentLength.Length);
+
+                    int bytesRead = 0;
+                    while (bytesRead < contentLength.Length)
+                    {
+                        bytesRead += await stream.ReadAsync(contentBytes, bytesRead, contentLength.Length - bytesRead);
+                    }
 
                     var packet = new LdapPacket(Tag.Parse(tagByte[0]));
                     packet.ChildAttributes.AddRange(await ParseAttributes(contentBytes, 0, contentLength.Length));
