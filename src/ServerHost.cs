@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Server;
 using Serilog;
 using System;
@@ -13,12 +14,12 @@ namespace MultiFactor.Ldap.Adapter
         private readonly CancellationTokenSource _stoppingCts = new CancellationTokenSource();
 
         private ILogger _logger;
-        private Configuration _configuration;
+        private ServiceConfiguration _configuration;
 
         private LdapServer _ldapServer;
         private LdapsServer _ldapsServer;
 
-        public ServerHost(ILogger logger, Configuration configuration)
+        public ServerHost(ILogger logger, ServiceConfiguration configuration)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));

@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using MultiFactor.Ldap.Adapter.Configuration;
 using Serilog;
 using System;
 using System.IO;
@@ -18,16 +19,13 @@ namespace MultiFactor.Ldap.Adapter.Server
         private TcpListener _server;
         protected ILogger _logger;
         protected IPEndPoint _localEndpoint;
-        protected RemoteEndPoint _remoteEndPoint;
-        protected Configuration _configuration;
+        protected ServiceConfiguration _serviceConfiguration;
 
-        public LdapServer(IPEndPoint localEndpoint, Configuration configuration, ILogger logger)
+        public LdapServer(IPEndPoint localEndpoint, ServiceConfiguration serviceConfiguration, ILogger logger)
         {
             _localEndpoint = localEndpoint ?? throw new ArgumentNullException(nameof(localEndpoint));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _serviceConfiguration = serviceConfiguration ?? throw new ArgumentNullException(nameof(serviceConfiguration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-            _remoteEndPoint = ParseServerEndpoint(_configuration.LdapServer.ToLower());
         }
 
         /// <summary>
@@ -85,19 +83,31 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             client.NoDelay = true;
 
+            var clientEndpoint = (IPEndPoint)client.Client.RemoteEndPoint;
+            var clientConfiguration = _serviceConfiguration.GetClient(clientEndpoint.Address);
+
+            if (clientConfiguration == null)
+            {
+                _logger.Warning("Received packet from unknown client {host:l}:{port}, closing", clientEndpoint.Address, clientEndpoint.Port);
+                client.Close();
+                return;
+            }
+
+            var remoteEndPoint = ParseServerEndpoint(clientConfiguration.LdapServer.ToLower());
+
             try
             {
-                var serverEndpoint = _remoteEndPoint.GetIPEndPoint();
+                var serverEndpoint = remoteEndPoint.GetIPEndPoint();
 
                 using (var serverConnection = new TcpClient())
                 {
                     await serverConnection.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
 
-                    using (var serverStream = await GetServerStream(serverConnection))
+                    using (var serverStream = await GetServerStream(serverConnection, remoteEndPoint))
                     {
                         using (var clientStream = await GetClientStream(client))
                         {
-                            var proxy = new LdapProxy(client, clientStream, serverConnection, serverStream, _configuration, _logger);
+                            var proxy = new LdapProxy(client, clientStream, serverConnection, serverStream, _serviceConfiguration, clientConfiguration, _logger);
                             await proxy.Start();
                         }
                     }
@@ -105,7 +115,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
             catch(Exception ex)
             {
-                _logger.Error(ex, $"Error while connecting to {_remoteEndPoint.Host}:{_remoteEndPoint.Port}");
+                _logger.Error(ex, $"Error while connecting to {remoteEndPoint.Host}:{remoteEndPoint.Port}");
             }
             finally
             {
@@ -167,14 +177,14 @@ namespace MultiFactor.Ldap.Adapter.Server
             return remoteEndPoint;
         }
 
-        private async Task<Stream> GetServerStream(TcpClient serverConnection)
+        private async Task<Stream> GetServerStream(TcpClient serverConnection, RemoteEndPoint remoteEndPoint)
         {
             var serverStream = serverConnection.GetStream();
 
-            if (_remoteEndPoint.UseTls)
+            if (remoteEndPoint.UseTls)
             {
                 var sslSream = new SslStream(serverStream, false, new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                await sslSream.AuthenticateAsClientAsync(_remoteEndPoint.Host);
+                await sslSream.AuthenticateAsClientAsync(remoteEndPoint.Host);
 
                 return sslSream;
             }

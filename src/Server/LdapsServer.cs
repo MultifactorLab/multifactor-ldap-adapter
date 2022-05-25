@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using MultiFactor.Ldap.Adapter.Configuration;
 using Serilog;
 using System.IO;
 using System.Net;
@@ -14,7 +15,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 {
     public class LdapsServer : LdapServer
     {
-        public LdapsServer(IPEndPoint localEndpoint, Configuration configuration, ILogger logger) : base(localEndpoint, configuration, logger)
+        public LdapsServer(IPEndPoint localEndpoint, ServiceConfiguration configuration, ILogger logger) : base(localEndpoint, configuration, logger)
         {
         }
 
@@ -24,7 +25,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             var tlsStream = new SslStream(stream, false);
 
             var tlsProcotols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            await tlsStream.AuthenticateAsServerAsync(_configuration.X509Certificate, clientCertificateRequired: false, tlsProcotols, checkCertificateRevocation: false);
+            await tlsStream.AuthenticateAsServerAsync(_serviceConfiguration.X509Certificate, clientCertificateRequired: false, tlsProcotols, checkCertificateRevocation: false);
 
             return tlsStream;
         }

@@ -3,6 +3,7 @@
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 
+using MultiFactor.Ldap.Adapter.Configuration;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -17,16 +18,16 @@ namespace MultiFactor.Ldap.Adapter.Services
     /// </summary>
     public class MultiFactorApiClient
     {
-        private Configuration _configuration;
+        private ServiceConfiguration _configuration;
         private ILogger _logger;
 
-        public MultiFactorApiClient(Configuration configuration, ILogger logger)
+        public MultiFactorApiClient(ServiceConfiguration configuration, ILogger logger)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<bool> Authenticate(string userName)
+        public async Task<bool> Authenticate(ClientConfiguration clientConfig, string userName)
         {
             var url = _configuration.ApiUrl + "/access/requests/la";
             var payload = new
@@ -34,7 +35,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 Identity = userName,
             };
 
-            var response = await SendRequest(url, payload);
+            var response = await SendRequest(clientConfig, url, payload);
 
             if (response == null)
             {
@@ -56,7 +57,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             return response.Granted;
         }
 
-        private async Task<MultiFactorAccessRequest> SendRequest(string url, object payload)
+        private async Task<MultiFactorAccessRequest> SendRequest(ClientConfiguration clientConfig, string url, object payload)
         {
             try
             {
@@ -72,7 +73,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 byte[] responseData = null;
 
                 //basic authorization
-                var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(_configuration.NasIdentifier + ":" + _configuration.MultiFactorSharedSecret));
+                var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
 
                 using (var web = new WebClient())
                 {
@@ -105,7 +106,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             {
                 _logger.Error(ex, $"Multifactor API host unreachable {url}: {ex.Message}");
 
-                if (_configuration.BypassSecondFactorWhenApiUnreachable)
+                if (clientConfig.BypassSecondFactorWhenApiUnreachable)
                 {
                     _logger.Warning("Bypass second factor");
                     return MultiFactorAccessRequest.Bypass;

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Services;
 using Serilog;
 using Serilog.Core;
@@ -82,7 +83,7 @@ namespace MultiFactor.Ldap.Adapter
             Log.Logger = loggerConfiguration.CreateLogger();
 
             //init configuration
-            var configuration = Configuration.Load();
+            var configuration = ServiceConfiguration.Load(Log.Logger);
 
             SetLogLevel(configuration.LogLevel, levelSwitch);
 
@@ -119,7 +120,7 @@ namespace MultiFactor.Ldap.Adapter
             Log.Logger.Information($"Logging level: {levelSwitch.MinimumLevel}");
         }
 
-        private static void GetOrCreateTlsCertificate(string path, Configuration configuration, Serilog.ILogger logger)
+        private static void GetOrCreateTlsCertificate(string path, ServiceConfiguration configuration, Serilog.ILogger logger)
         {
             var certDirectory = $"{path}tls";
             if (!Directory.Exists(certDirectory))
@@ -174,7 +175,7 @@ namespace MultiFactor.Ldap.Adapter
 
         private static ITextFormatter GetLogFormatter()
         {
-            var format = Configuration.GetLogFormat();
+            var format = ServiceConfiguration.GetLogFormat();
             switch (format?.ToLower())
             {
                 case "json":
