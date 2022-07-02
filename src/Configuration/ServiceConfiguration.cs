@@ -217,6 +217,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var activeDirectoryGroupSetting                     = appSettings.Settings["active-directory-group"]?.Value;
             var activeDirectory2FaGroupSetting                  = appSettings.Settings["active-directory-2fa-group"]?.Value;
             var bypassSecondFactorWhenApiUnreachableSetting     = appSettings.Settings["bypass-second-factor-when-api-unreachable"]?.Value;
+            var loadActiveDirectoryNestedGroupsSettings         = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
 
 
             if (string.IsNullOrEmpty(ldapServerSetting))
@@ -238,8 +239,6 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 LdapServer = ldapServerSetting,
                 MultifactorApiKey = multifactorApiKeySetting,
                 MultifactorApiSecret = multifactorApiSecretSetting,
-                ActiveDirectoryGroup = activeDirectoryGroupSetting,
-                ActiveDirectory2FaGroup = activeDirectory2FaGroupSetting
             };
 
             if (!string.IsNullOrEmpty(serviceAccountsSetting))
@@ -258,12 +257,34 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                     .ToArray();
             }
 
-            if (bypassSecondFactorWhenApiUnreachableSetting != null)
+            if (!string.IsNullOrEmpty(activeDirectoryGroupSetting))
             {
-                if (bool.TryParse(bypassSecondFactorWhenApiUnreachableSetting, out var bypassSecondFactorWhenApiUnreachable))
+                configuration.ActiveDirectoryGroup = activeDirectoryGroupSetting.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+
+            if (!string.IsNullOrEmpty(activeDirectory2FaGroupSetting))
+            {
+                configuration.ActiveDirectory2FaGroup = activeDirectory2FaGroupSetting.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+
+            if (!string.IsNullOrEmpty(bypassSecondFactorWhenApiUnreachableSetting))
+            {
+                if (!bool.TryParse(bypassSecondFactorWhenApiUnreachableSetting, out var bypassSecondFactorWhenApiUnreachable))
                 {
-                    configuration.BypassSecondFactorWhenApiUnreachable = bypassSecondFactorWhenApiUnreachable;
+                    throw new Exception("Configuration error: Can't parse 'bypass-second-factor-when-api-unreachable' value");
                 }
+
+                configuration.BypassSecondFactorWhenApiUnreachable = bypassSecondFactorWhenApiUnreachable;
+            }
+
+            if (!string.IsNullOrEmpty(loadActiveDirectoryNestedGroupsSettings))
+            {
+                if (!bool.TryParse(loadActiveDirectoryNestedGroupsSettings, out var loadActiveDirectoryNestedGroups))
+                {
+                    throw new Exception("Configuration error: Can't parse 'load-active-directory-nested-groups' value");
+                }
+
+                configuration.LoadActiveDirectoryNestedGroups = loadActiveDirectoryNestedGroups;
             }
 
             return configuration;

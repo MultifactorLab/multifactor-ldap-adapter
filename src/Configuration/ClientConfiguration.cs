@@ -2,6 +2,8 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using System.Linq;
+
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
     public class ClientConfiguration
@@ -11,6 +13,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             BypassSecondFactorWhenApiUnreachable = true; //by default
             ServiceAccounts = new string[0];
             ServiceAccountsOrganizationUnit = new string[0];
+            ActiveDirectoryGroup = new string[0];
+            ActiveDirectory2FaGroup = new string[0];
+            LoadActiveDirectoryNestedGroups = true;
         }
 
         #region general settings
@@ -41,14 +46,17 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public string[] ServiceAccountsOrganizationUnit { get; set; }
 
         /// <summary>
-        /// Only members of this group allowed to access (Optional)
+        /// Only members of this groups allowed to access (Optional)
         /// </summary>
-        public string ActiveDirectoryGroup { get; set; }
+        public string[] ActiveDirectoryGroup { get; set; }
 
         /// <summary>
-        /// Only members of this group required to pass 2fa to access (Optional)
+        /// Only members of this groups required to pass 2fa to access (Optional)
         /// </summary>
-        public string ActiveDirectory2FaGroup { get; set; }
+        public string[] ActiveDirectory2FaGroup { get; set; }
+
+        public bool LoadActiveDirectoryNestedGroups { get; set; }
+
 
         #endregion
 
@@ -69,8 +77,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public bool CheckUserGroups()
         {
             return
-                !string.IsNullOrEmpty(ActiveDirectoryGroup) ||
-                !string.IsNullOrEmpty(ActiveDirectory2FaGroup);
+                ActiveDirectoryGroup.Any() || ActiveDirectory2FaGroup.Any();
         }
     }
 }
