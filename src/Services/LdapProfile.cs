@@ -1,4 +1,8 @@
-﻿using System;
+﻿//Copyright(c) 2022 MultiFactor
+//Please see licence at 
+//https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
