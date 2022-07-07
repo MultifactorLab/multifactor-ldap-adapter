@@ -127,14 +127,14 @@ namespace MultiFactor.Ldap.Adapter.Server
                         if (IsServiceAccount(userName))
                         {
                             //service acc
-                            _logger.Debug($"Received {authentication.MechanismName} bind request for service account '{{user:l}}' from {{client}}", userName, _clientConnection.Client.RemoteEndPoint);
+                            _logger.Debug($"Received {authentication.MechanismName} bind request for service account '{{user:l}}' from {{client}} {{clientName:l}}", userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
                         }
                         else
                         {
                             //user acc
                             _userName = ConvertDistinguishedNameToCommonName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
-                            _logger.Debug($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}}", userName, _clientConnection.Client.RemoteEndPoint);
+                            _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
                         }
                     }
                 }
