@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -166,6 +167,9 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                         var bypass = false;
 
+                        //apply login transformation users if any
+                        _userName = ProcessUserNameTransformRules();
+
                         if (_clientConfig.CheckUserGroups())
                         {
                             var profile = await _ldapService.LoadProfile(_serverStream, _userName);
@@ -211,7 +215,6 @@ namespace MultiFactor.Ldap.Adapter.Server
                                 if (mfaGroup != null)
                                 {
                                     _logger.Debug($"User '{{user:l}}' is member of '{mfaGroup.Trim()}' group in {profile.BaseDn}", _userName);
-
                                 }
                                 else
                                 {
@@ -382,6 +385,33 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             return profile.MemberOf?.Any(g => g.ToLower() == group.ToLower().Trim()) ?? false;
         }
+
+        private string ProcessUserNameTransformRules()
+        {
+            var userName = _userName;
+
+            foreach (var rule in _clientConfig.UserNameTransformRules)
+            {
+                var regex = new Regex(rule.Match);
+                var before = userName;
+                if (rule.Count != null)
+                {
+                    userName = regex.Replace(userName, rule.Replace, rule.Count.Value);
+                }
+                else
+                {
+                    userName = regex.Replace(userName, rule.Replace);
+                }
+
+                if (before != userName)
+                {
+                    _logger.Debug($"Transformed username {before} => {userName}");
+                }
+            }
+
+            return userName;
+        }
+
     }
 
     public enum LdapProxyAuthenticationStatus

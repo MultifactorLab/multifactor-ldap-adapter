@@ -168,7 +168,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                     throw new ConfigurationErrorsException("No clients' config files found. Use one of the *.template files in the /clients folder to customize settings. Then save this file as *.config.");
                 }
 
-                var client = Load("General", appSettings);
+                var userNameTransformRulesSection = ConfigurationManager.GetSection("UserNameTransformRules") as UserNameTransformRulesSection;
+
+                var client = Load("General", appSettings, userNameTransformRulesSection);
                 configuration.AddClient(IPAddress.Any, client);
                 configuration.SingleClientMode = true;
             }
@@ -183,8 +185,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
                     var config = ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None);
                     var clientSettings = (AppSettingsSection)config.GetSection("appSettings");
+                    var userNameTransformRulesSection = config.GetSection("UserNameTransformRules") as UserNameTransformRulesSection;
 
-                    var client = Load(Path.GetFileNameWithoutExtension(clientConfigFile), clientSettings);
+                    var client = Load(Path.GetFileNameWithoutExtension(clientConfigFile), clientSettings, userNameTransformRulesSection);
 
                     var ldapClientIpSetting = clientSettings.Settings["ldap-client-ip"]?.Value;
                     if (string.IsNullOrEmpty(ldapClientIpSetting))
@@ -207,7 +210,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             return configuration;
         }
 
-        private static ClientConfiguration Load(string name, AppSettingsSection appSettings)
+        private static ClientConfiguration Load(string name, AppSettingsSection appSettings, UserNameTransformRulesSection userNameTransformRulesSection)
         {
             var ldapServerSetting                               = appSettings.Settings["ldap-server"]?.Value;
             var multifactorApiKeySetting                        = appSettings.Settings["multifactor-nas-identifier"]?.Value;
@@ -285,6 +288,17 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 }
 
                 configuration.LoadActiveDirectoryNestedGroups = loadActiveDirectoryNestedGroups;
+            }
+
+            if (userNameTransformRulesSection?.Members != null)
+            {
+                foreach (var member in userNameTransformRulesSection?.Members)
+                {
+                    if (member is UserNameTransformRulesElement rule)
+                    {
+                        configuration.UserNameTransformRules.Add(rule);
+                    }
+                }
             }
 
             return configuration;

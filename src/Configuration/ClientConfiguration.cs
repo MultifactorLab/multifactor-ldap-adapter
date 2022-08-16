@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using System.Collections.Generic;
 using System.Linq;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
@@ -16,6 +17,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             ActiveDirectoryGroup = new string[0];
             ActiveDirectory2FaGroup = new string[0];
             LoadActiveDirectoryNestedGroups = true;
+
+            UserNameTransformRules = new List<UserNameTransformRulesElement>();
         }
 
         #region general settings
@@ -57,6 +60,10 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
         public bool LoadActiveDirectoryNestedGroups { get; set; }
 
+        /// <summary>
+        /// Username transfor rules
+        /// </summary>
+        public IList<UserNameTransformRulesElement> UserNameTransformRules { get; set; }
 
         #endregion
 
