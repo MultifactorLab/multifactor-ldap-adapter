@@ -84,6 +84,8 @@ namespace MultiFactor.Ldap.Adapter.Services
             packet.ChildAttributes.Add(searchRequest);
 
             var attrList = new LdapAttribute(UniversalDataType.Sequence);
+            attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "uid"));
+            attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "sAMAccountName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "UserPrincipalName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "DisplayName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "mail"));
@@ -197,6 +199,12 @@ namespace MultiFactor.Ldap.Adapter.Services
 
                         switch (entry.Name)
                         {
+                            case "uid":
+                                profile.Uid = entry.Values.FirstOrDefault();    //openldap, freeipa
+                                break;
+                            case "sAMAccountName":
+                                profile.Uid = entry.Values.FirstOrDefault();    //ad
+                                break;
                             case "displayName":
                                 profile.DisplayName = entry.Values.FirstOrDefault();
                                 break;
@@ -265,7 +273,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             return dn.Split(',')[0].Split(new[] { '=' })[1];
         }
 
-        private static IdentityType GetIdentityType(string userName)
+        public static IdentityType GetIdentityType(string userName)
         {
             if (userName.Contains("@")) return IdentityType.UserPrincipalName;
             if (userName.Contains("CN=", StringComparison.OrdinalIgnoreCase)) return IdentityType.DistinguishedName;

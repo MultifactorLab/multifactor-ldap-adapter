@@ -170,9 +170,10 @@ namespace MultiFactor.Ldap.Adapter.Server
                         //apply login transformation users if any
                         _userName = ProcessUserNameTransformRules();
 
+                        var profile = await _ldapService.LoadProfile(_serverStream, _userName);
+
                         if (_clientConfig.CheckUserGroups())
                         {
-                            var profile = await _ldapService.LoadProfile(_serverStream, _userName);
                             var profileLoaded = profile != null;
 
                             if (!profileLoaded)
@@ -226,6 +227,11 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                         if (!bypass)
                         {
+                            if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
+                            {
+                                _userName = profile?.Uid ?? _userName;
+                            }
+                            
                             var apiClient = new MultiFactorApiClient(_configuration, _logger);
                             var result = await apiClient.Authenticate(_clientConfig, _userName); //second factor
 
