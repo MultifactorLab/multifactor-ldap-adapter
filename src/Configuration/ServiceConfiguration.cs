@@ -219,6 +219,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var serviceAccountsOrganizationUnitSetting          = appSettings.Settings["ldap-service-accounts-ou"]?.Value;
             var activeDirectoryGroupSetting                     = appSettings.Settings["active-directory-group"]?.Value;
             var activeDirectory2FaGroupSetting                  = appSettings.Settings["active-directory-2fa-group"]?.Value;
+            var activeDirectory2FaBypassGroupSetting            = appSettings.Settings["active-directory-2fa-bypass-group"]?.Value;
             var bypassSecondFactorWhenApiUnreachableSetting     = appSettings.Settings["bypass-second-factor-when-api-unreachable"]?.Value;
             var loadActiveDirectoryNestedGroupsSettings         = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
 
@@ -268,6 +269,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             if (!string.IsNullOrEmpty(activeDirectory2FaGroupSetting))
             {
                 configuration.ActiveDirectory2FaGroup = activeDirectory2FaGroupSetting.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+
+            if (!string.IsNullOrEmpty(activeDirectory2FaBypassGroupSetting))
+            {
+                configuration.ActiveDirectory2FaBypassGroup = activeDirectory2FaBypassGroupSetting.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
             }
 
             if (!string.IsNullOrEmpty(bypassSecondFactorWhenApiUnreachableSetting))

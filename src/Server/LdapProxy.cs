@@ -191,11 +191,11 @@ namespace MultiFactor.Ldap.Adapter.Server
                                 var accessGroup = _clientConfig.ActiveDirectoryGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (accessGroup != null)
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is member of '{accessGroup.Trim()}' group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is member of '{accessGroup.Trim()}' access group in {profile.BaseDn}", _userName);
                                 }
                                 else
                                 {
-                                    _logger.Warning($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectoryGroup)}' group in {profile.BaseDn}", _userName);
+                                    _logger.Warning($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectoryGroup)}' access group in {profile.BaseDn}", _userName);
 
                                     //return invalid creds response
                                     var responsePacket = InvalidCredentials(packet);
@@ -215,12 +215,27 @@ namespace MultiFactor.Ldap.Adapter.Server
                                 var mfaGroup = _clientConfig.ActiveDirectory2FaGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (mfaGroup != null)
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is member of '{mfaGroup.Trim()}' group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is member of '{mfaGroup.Trim()}' 2FA group in {profile.BaseDn}", _userName);
                                 }
                                 else
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectory2FaGroup)}' group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectory2FaGroup)}' 2FA group in {profile.BaseDn}", _userName);
                                     bypass = true;
+                                }
+                            }
+
+                            //check of mfa is not mandatory
+                            if (profileLoaded && _clientConfig.ActiveDirectory2FaBypassGroup.Any() && !bypass)
+                            {
+                                var bypassGroup = _clientConfig.ActiveDirectory2FaBypassGroup.FirstOrDefault(group => IsMemberOf(profile, group));
+                                if (bypassGroup != null)
+                                {
+                                    _logger.Information($"User '{{user:l}}' is member of '{bypassGroup.Trim()}' 2FA bypass group in {profile.BaseDn}", _userName);
+                                    bypass = true;
+                                }
+                                else
+                                {
+                                    _logger.Debug($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectory2FaBypassGroup)}' 2FA bypass group in {profile.BaseDn}", _userName);
                                 }
                             }
                         }
@@ -247,6 +262,10 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                                 return (response, response.Length);
                             }
+                        }
+                        else
+                        {
+                            _logger.Information("Bypass second factor for user '{user:l}'", _userName);
                         }
 
                         _status = LdapProxyAuthenticationStatus.None;

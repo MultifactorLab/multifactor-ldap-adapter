@@ -16,6 +16,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             ServiceAccountsOrganizationUnit = new string[0];
             ActiveDirectoryGroup = new string[0];
             ActiveDirectory2FaGroup = new string[0];
+            ActiveDirectory2FaBypassGroup = new string[0];
+
             LoadActiveDirectoryNestedGroups = true;
 
             UserNameTransformRules = new List<UserNameTransformRulesElement>();
@@ -57,6 +59,10 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Only members of this groups required to pass 2fa to access (Optional)
         /// </summary>
         public string[] ActiveDirectory2FaGroup { get; set; }
+        /// <summary>
+        /// Members of this group should not pass 2fa to access (Optional)
+        /// </summary>
+        public string[] ActiveDirectory2FaBypassGroup { get; set; }
 
         public bool LoadActiveDirectoryNestedGroups { get; set; }
 
@@ -84,7 +90,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public bool CheckUserGroups()
         {
             return
-                ActiveDirectoryGroup.Any() || ActiveDirectory2FaGroup.Any();
+                ActiveDirectoryGroup.Any() || 
+                ActiveDirectory2FaGroup.Any() || 
+                ActiveDirectory2FaBypassGroup.Any();
         }
     }
 }
