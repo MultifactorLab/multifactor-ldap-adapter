@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
 
@@ -172,9 +173,13 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                         var bypass = false;
 
+                        //apply login transformation users if any
+                        _userName = ProcessUserNameTransformRules();
+
+                        var profile = await _ldapService.LoadProfile(_serverStream, _userName);
+
                         if (_clientConfig.CheckUserGroups())
                         {
-                            var profile = await _ldapService.LoadProfile(_serverStream, _userName);
                             var profileLoaded = profile != null;
 
                             if (!profileLoaded)
@@ -192,11 +197,11 @@ namespace MultiFactor.Ldap.Adapter.Server
                                 var accessGroup = _clientConfig.ActiveDirectoryGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (accessGroup != null)
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is member of '{accessGroup.Trim()}' group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is member of '{accessGroup.Trim()}' access group in {profile.BaseDn}", _userName);
                                 }
                                 else
                                 {
-                                    _logger.Warning($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectoryGroup)}' group in {profile.BaseDn}", _userName);
+                                    _logger.Warning($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectoryGroup)}' access group in {profile.BaseDn}", _userName);
 
                                     //return invalid creds response
                                     var responsePacket = InvalidCredentials(packet);
@@ -216,19 +221,38 @@ namespace MultiFactor.Ldap.Adapter.Server
                                 var mfaGroup = _clientConfig.ActiveDirectory2FaGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (mfaGroup != null)
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is member of '{mfaGroup.Trim()}' group in {profile.BaseDn}", _userName);
-
+                                    _logger.Debug($"User '{{user:l}}' is member of '{mfaGroup.Trim()}' 2FA group in {profile.BaseDn}", _userName);
                                 }
                                 else
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectory2FaGroup)}' group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectory2FaGroup)}' 2FA group in {profile.BaseDn}", _userName);
                                     bypass = true;
+                                }
+                            }
+
+                            //check of mfa is not mandatory
+                            if (profileLoaded && _clientConfig.ActiveDirectory2FaBypassGroup.Any() && !bypass)
+                            {
+                                var bypassGroup = _clientConfig.ActiveDirectory2FaBypassGroup.FirstOrDefault(group => IsMemberOf(profile, group));
+                                if (bypassGroup != null)
+                                {
+                                    _logger.Information($"User '{{user:l}}' is member of '{bypassGroup.Trim()}' 2FA bypass group in {profile.BaseDn}", _userName);
+                                    bypass = true;
+                                }
+                                else
+                                {
+                                    _logger.Debug($"User '{{user:l}}' is not member of '{string.Join(';', _clientConfig.ActiveDirectory2FaBypassGroup)}' 2FA bypass group in {profile.BaseDn}", _userName);
                                 }
                             }
                         }
 
                         if (!bypass)
                         {
+                            if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
+                            {
+                                _userName = profile?.Uid ?? _userName;
+                            }
+                            
                             var apiClient = new MultiFactorApiClient(_configuration, _logger);
                             var result = await apiClient.Authenticate(_clientConfig, _userName); //second factor
 
@@ -244,6 +268,10 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                                 return (response, response.Length);
                             }
+                        }
+                        else
+                        {
+                            _logger.Information("Bypass second factor for user '{user:l}'", _userName);
                         }
 
                         _status = LdapProxyAuthenticationStatus.None;
@@ -352,6 +380,33 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             return profile.MemberOf?.Any(g => g.ToLower() == group.ToLower().Trim()) ?? false;
         }
+
+        private string ProcessUserNameTransformRules()
+        {
+            var userName = _userName;
+
+            foreach (var rule in _clientConfig.UserNameTransformRules)
+            {
+                var regex = new Regex(rule.Match);
+                var before = userName;
+                if (rule.Count != null)
+                {
+                    userName = regex.Replace(userName, rule.Replace, rule.Count.Value);
+                }
+                else
+                {
+                    userName = regex.Replace(userName, rule.Replace);
+                }
+
+                if (before != userName)
+                {
+                    _logger.Debug($"Transformed username {before} => {userName}");
+                }
+            }
+
+            return userName;
+        }
+
     }
 
     public enum LdapProxyAuthenticationStatus

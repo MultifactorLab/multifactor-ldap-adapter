@@ -148,7 +148,9 @@ namespace MultiFactor.Ldap.Adapter.Core
                 int bytesRead = 0;
                 while (bytesRead < lengthoflengthbytes)
                 {
-                    bytesRead += await stream.ReadAsync(lengthBytes, bytesRead, lengthoflengthbytes - bytesRead);
+                    var len = await stream.ReadAsync(lengthBytes, bytesRead, lengthoflengthbytes - bytesRead);
+                    if (len == 0) break;
+                    bytesRead += len;
                 }
 
                 Array.Reverse(lengthBytes);
