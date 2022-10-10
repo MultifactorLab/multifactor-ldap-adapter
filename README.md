@@ -193,6 +193,12 @@ The component's parameters are stored in ```/opt/multifactor/ldap/multifactor-ld
 <!-- Active Directory domain address or name, and ldap or ldaps connection scheme -->
 <add key="ldap-server" value="ldaps://domain.local"/>
 
+<!-- 
+    Bind user container. 
+    Example: cn=users,cn=accounts,dc=domain,dc=local 
+-->
+<!--<add key="ldap-bind-dn" value=""/>-->
+
 <!-- List of service accounts that do not require a second factor, separated by semicolons -->
 <add key="ldap-service-accounts" value="CN=Service Acc,OU=Users,DC=domain,DC=local"/>
 

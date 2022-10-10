@@ -31,6 +31,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public string LdapServer { get; set; }
 
         /// <summary>
+        /// Bind user container
+        /// </summary>
+        public string LdapBindDn { get; set; }
+
+        /// <summary>
         /// Bypass second factor when MultiFactor API is unreachable
         /// </summary>
         public bool BypassSecondFactorWhenApiUnreachable { get; set; }
