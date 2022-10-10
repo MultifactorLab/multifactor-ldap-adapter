@@ -70,7 +70,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             var and = new LdapAttribute((byte)LdapFilterChoice.and);
 
             var eq1 = new LdapAttribute((byte)LdapFilterChoice.equalityMatch);
-            var bindDnDefined = !string.IsNullOrEmpty(_config.LdapBindDn);
+            var bindDnDefined = !string.IsNullOrEmpty(_config.LdapBaseDn);
             if (bindDnDefined)
             {
                 eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "uid"));
