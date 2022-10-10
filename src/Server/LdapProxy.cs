@@ -250,7 +250,14 @@ namespace MultiFactor.Ldap.Adapter.Server
                         {
                             if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
                             {
-                                _userName = profile?.Uid ?? _userName;
+                                if (profile?.Uid == null)
+                                {
+                                    _logger.Warning($"Unable to transform DN to UID: profile is not loaded for '{{user:l}}' or profile UID is null", _userName);
+                                }
+                                else
+                                {
+                                    _userName = profile.Uid ?? _userName;
+                                }
                             }
                             
                             var apiClient = new MultiFactorApiClient(_configuration, _logger);
