@@ -17,11 +17,12 @@ namespace MultiFactor.Ldap.Adapter.Services
     {
         //must not repeat proxied messages ids
         private int _messageId = Int32.MaxValue - 9999;
-
+        private readonly ClientConfiguration _config;
         private ILogger _logger;
 
-        public LdapService(ILogger logger)
+        public LdapService(ClientConfiguration config, ILogger logger)
         {
+            _config = config ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -64,17 +65,33 @@ namespace MultiFactor.Ldap.Adapter.Services
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)60));      //time limit: 60
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Boolean, false));         //typesOnly: false
 
-            var identityType = GetIdentityType(userName);
+            var id = LdapUserIdentity.Parse(userName);
 
             var and = new LdapAttribute((byte)LdapFilterChoice.and);
 
             var eq1 = new LdapAttribute((byte)LdapFilterChoice.equalityMatch);
-            eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, identityType.ToString()));
-            eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, userName));
+            var bindDnDefined = !string.IsNullOrEmpty(_config.LdapBaseDn);
+            if (bindDnDefined)
+            {
+                eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "uid"));
+                eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, id.GetUid()));
+            }
+            else 
+            {
+                eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, id.Type.ToString()));
+                eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, id.Name));
+            }
 
             var eq2 = new LdapAttribute((byte)LdapFilterChoice.equalityMatch);
             eq2.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "objectClass"));
-            eq2.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "user"));
+            if (bindDnDefined)
+            {
+                eq2.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "person"));
+            }
+            else
+            {
+                eq2.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "user"));
+            }
 
             and.ChildAttributes.Add(eq1);
             and.ChildAttributes.Add(eq2);

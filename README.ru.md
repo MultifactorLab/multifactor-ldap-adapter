@@ -234,6 +234,12 @@ $ sudo systemctl enable multifactor-ldap
 <!-- Адрес или название домена Active Directory, а также схема подключения ldap или ldaps -->
 <add key="ldap-server" value="ldaps://domain.local"/>
 
+<!-- 
+    Base DN для биндинга пользователя. 
+    Пример: cn=users,cn=accounts,dc=domain,dc=local 
+-->
+<!--<add key="ldap-base-dn" value=""/>-->
+
 <!-- Список сервисных учетных записей, которым не требуется второй фактор, перечисленные через точку с запятой -->
 <add key="ldap-service-accounts" value="CN=Service Acc,OU=Users,DC=domain,DC=local"/>
 

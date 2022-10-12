@@ -2,7 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
-namespace MultiFactor.Ldap.Adapter.Services
+namespace MultiFactor.Ldap.Adapter.Core
 {
     public enum IdentityType
     {

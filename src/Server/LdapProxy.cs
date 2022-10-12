@@ -14,6 +14,8 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
+using MultiFactor.Ldap.Adapter.Core.Requests;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -47,7 +49,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _clientConfig = clientConfig ?? throw new ArgumentNullException(nameof(clientConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            _ldapService = new LdapService(logger);
+            _ldapService = new LdapService(clientConfig, logger);
         }
 
         public async Task Start()
@@ -102,12 +104,11 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         private async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
         {
-            var packet = await LdapPacket.ParsePacket(data);
+            var request = await LdapRequest.FromBytesAsync(data);
 
-            var searchRequest = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.SearchRequest);
-            if (searchRequest != null)
+            if (request.RequestType == LdapRequestType.SearchRequest)
             {
-                var filter = searchRequest.ChildAttributes[6];
+                var filter = request.As<SearchRequest>().SearchAttribute.ChildAttributes[6];
                 var user = SearchUserName(filter);
 
                 if (!string.IsNullOrEmpty(user))
@@ -117,11 +118,12 @@ namespace MultiFactor.Ldap.Adapter.Server
                 }
             }
 
-            var bindRequest = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.BindRequest);
-            if (bindRequest != null)
+            if (request.RequestType == LdapRequestType.BindRequest)
             {
-                var authentication = LoadAuthentication(bindRequest);
-                if (authentication != null && authentication.TryParse(bindRequest, out var userName))
+                var bindReq = request.As<BindRequest>();
+                var authFactory = new BindAuthenticationFactory(_logger);
+                var authentication = authFactory.GetAuthentication(bindReq.BindAttribute);
+                if (authentication != null && authentication.TryParse(bindReq.BindAttribute, out var userName))
                 {
                     if (!string.IsNullOrEmpty(userName)) //empty userName means anonymous bind
                     {
@@ -136,6 +138,10 @@ namespace MultiFactor.Ldap.Adapter.Server
                             _userName = ConvertDistinguishedNameToCommonName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
                             _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
+
+                            var modifier = RequestModifierFactory.CreateModifier<BindRequest>(_clientConfig, _logger);
+                            var modifiedBytes = modifier.Modify(bindReq).Packet.GetBytes();
+                            return await Task.FromResult((modifiedBytes, modifiedBytes.Length));
                         }
                     }
                 }
@@ -244,7 +250,14 @@ namespace MultiFactor.Ldap.Adapter.Server
                         {
                             if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
                             {
-                                _userName = profile?.Uid ?? _userName;
+                                if (profile?.Uid == null)
+                                {
+                                    _logger.Warning($"Unable to transform DN to UID: profile is not loaded for '{{user:l}}' or profile UID is null", _userName);
+                                }
+                                else
+                                {
+                                    _userName = profile.Uid ?? _userName;
+                                }
                             }
                             
                             var apiClient = new MultiFactorApiClient(_configuration, _logger);
@@ -318,42 +331,6 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
 
             return dn;
-        }
-
-        private BindAuthentication LoadAuthentication(LdapAttribute bindRequest)
-        {
-            var authPacket = bindRequest.ChildAttributes[2];
-            if (!authPacket.IsConstructed)  //simple bind or NTLM
-            {
-                if (BindAuthentication.IsNtlm(authPacket.Value))
-                {
-                    return new NtlmBindAuthentication(_logger);
-                }
-
-                return new SimpleBindAuthentication(_logger);
-            }
-
-            var mechanism = authPacket.ChildAttributes[0].GetValue<string>();
-
-            if (mechanism == "DIGEST-MD5")
-            {
-                return new DigestMd5BindAuthentication(_logger);
-            }
-
-            if (mechanism == "GSS-SPNEGO")
-            {
-                var saslPacket = authPacket.ChildAttributes[1].Value;
-                if (BindAuthentication.IsNtlm(saslPacket))
-                {
-                    return new SpnegoNtlmBindAuthentication(_logger);
-                }
-            }
-
-
-            //kerberos or not-implemented
-            //_logger.Debug($"Unknown bind mechanism: {mechanism}");
-
-            return null;
         }
 
         private string SearchUserName(LdapAttribute attr)

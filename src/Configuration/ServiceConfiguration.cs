@@ -213,6 +213,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         private static ClientConfiguration Load(string name, AppSettingsSection appSettings, UserNameTransformRulesSection userNameTransformRulesSection)
         {
             var ldapServerSetting                               = appSettings.Settings["ldap-server"]?.Value;
+            var ldapBaseDnSetting                               = appSettings.Settings["ldap-base-dn"]?.Value;
             var multifactorApiKeySetting                        = appSettings.Settings["multifactor-nas-identifier"]?.Value;
             var multifactorApiSecretSetting                     = appSettings.Settings["multifactor-shared-secret"]?.Value;
             var serviceAccountsSetting                          = appSettings.Settings["ldap-service-accounts"]?.Value;
@@ -243,6 +244,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 LdapServer = ldapServerSetting,
                 MultifactorApiKey = multifactorApiKeySetting,
                 MultifactorApiSecret = multifactorApiSecretSetting,
+                LdapBaseDn = ldapBaseDnSetting,
             };
 
             if (!string.IsNullOrEmpty(serviceAccountsSetting))
