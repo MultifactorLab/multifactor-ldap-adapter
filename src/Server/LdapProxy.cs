@@ -57,7 +57,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             var from = _clientConnection.Client.RemoteEndPoint.ToString();
             var to = _serverConnection.Client.RemoteEndPoint.ToString();
 
-            _logger.Debug("Opened {client} => {server} client {clientName:l}", from, to, _clientConfig.Name);
+            _logger.Information("Opened {client} => {server} client {clientName:l}", from, to, _clientConfig.Name);
 
             await Task.WhenAny(
                 DataExchange(_clientConnection, _clientStream, _serverConnection, _serverStream, ParseAndProcessRequest),
