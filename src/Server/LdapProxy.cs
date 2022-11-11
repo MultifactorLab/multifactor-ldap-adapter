@@ -38,6 +38,8 @@ namespace MultiFactor.Ldap.Adapter.Server
         private static readonly ConcurrentDictionary<string, string> _usersDn2Cn = new ConcurrentDictionary<string, string>();
         private static readonly ConcurrentDictionary<string, string> _usersCn2Dn = new ConcurrentDictionary<string, string>();
 
+        private readonly RandomWaiter _waiter;
+
         public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, ServiceConfiguration configuration, ClientConfiguration clientConfig, ILogger logger)
         {
             _clientConnection = clientConnection ?? throw new ArgumentNullException(nameof(clientConnection));
@@ -50,6 +52,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             _ldapService = new LdapService(clientConfig, logger);
+            _waiter = RandomWaiterFactory.CreateWaiter(configuration);
         }
 
         public async Task Start()
@@ -205,6 +208,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                                     //return invalid creds response
                                     var responsePacket = InvalidCredentials(packet);
+                                    await _waiter.WaitSomeTimeAsync();
                                     var response = responsePacket.GetBytes();
 
                                     _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
@@ -267,6 +271,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             {
                                 //return invalid creds response
                                 var responsePacket = InvalidCredentials(packet);
+                                await _waiter.WaitSomeTimeAsync();
                                 var response = responsePacket.GetBytes();
 
                                 _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);

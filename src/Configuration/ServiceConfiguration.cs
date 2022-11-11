@@ -93,6 +93,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public X509Certificate2 X509Certificate { get; set; }
 
         public bool SingleClientMode { get; set; }
+        public RandomWaiterConfig InvalidCredentialDelay { get; private set; }
 
 
         #region load config section
@@ -154,6 +155,15 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             if (!(configuration.StartLdapServer || configuration.StartLdapsServer))
             {
                 throw new Exception("Configuration error: Neither 'adapter-ldap-endpoint' or 'adapter-ldaps-endpoint' configured");
+            }
+
+            try
+            {
+                configuration.InvalidCredentialDelay = RandomWaiterConfig.Create(appSettings.Settings[Core.Constants.Configuration.PciDss.InvalidCredentialDelay]?.Value);
+            }
+            catch
+            {
+                throw new Exception($"Configuration error: Can't parse '{Core.Constants.Configuration.PciDss.InvalidCredentialDelay}' value");
             }
 
             var clientConfigFilesPath = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + Path.DirectorySeparatorChar + "clients";
