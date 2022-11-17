@@ -208,7 +208,6 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                                     //return invalid creds response
                                     var responsePacket = InvalidCredentials(packet);
-                                    await _waiter.WaitSomeTimeAsync();
                                     var response = responsePacket.GetBytes();
 
                                     _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
@@ -271,7 +270,6 @@ namespace MultiFactor.Ldap.Adapter.Server
                             {
                                 //return invalid creds response
                                 var responsePacket = InvalidCredentials(packet);
-                                await _waiter.WaitSomeTimeAsync();
                                 var response = responsePacket.GetBytes();
 
                                 _logger.Debug("Sent invalid credential response for user '{user:l}' to {client}", _userName, _clientConnection.Client.RemoteEndPoint);
@@ -292,6 +290,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         //just log
                         var reason = bindResponse.ChildAttributes[2].GetValue<string>();
+                        await _waiter.WaitSomeTimeAsync();
                         _logger.Warning("Verification user '{user:l}' at {server} failed: {reason}", _userName, _serverConnection.Client.RemoteEndPoint, reason);
                     }
                 }
