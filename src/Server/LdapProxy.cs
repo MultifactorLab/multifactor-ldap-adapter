@@ -38,6 +38,8 @@ namespace MultiFactor.Ldap.Adapter.Server
         private static readonly ConcurrentDictionary<string, string> _usersDn2Cn = new ConcurrentDictionary<string, string>();
         private static readonly ConcurrentDictionary<string, string> _usersCn2Dn = new ConcurrentDictionary<string, string>();
 
+        private readonly RandomWaiter _waiter;
+
         public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, ServiceConfiguration configuration, ClientConfiguration clientConfig, ILogger logger)
         {
             _clientConnection = clientConnection ?? throw new ArgumentNullException(nameof(clientConnection));
@@ -50,6 +52,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             _ldapService = new LdapService(clientConfig, logger);
+            _waiter = RandomWaiterFactory.CreateWaiter(configuration);
         }
 
         public async Task Start()
@@ -287,6 +290,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         //just log
                         var reason = bindResponse.ChildAttributes[2].GetValue<string>();
+                        await _waiter.WaitSomeTimeAsync();
                         _logger.Warning("Verification user '{user:l}' at {server} failed: {reason}", _userName, _serverConnection.Client.RemoteEndPoint, reason);
                     }
                 }
