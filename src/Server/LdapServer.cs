@@ -3,6 +3,7 @@
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Services;
 using Serilog;
 using System;
 using System.IO;
@@ -20,11 +21,14 @@ namespace MultiFactor.Ldap.Adapter.Server
         protected ILogger _logger;
         protected IPEndPoint _localEndpoint;
         protected ServiceConfiguration _serviceConfiguration;
+        private readonly LdapProxyFactory _proxyFactory;
 
-        public LdapServer(IPEndPoint localEndpoint, ServiceConfiguration serviceConfiguration, ILogger logger)
+        public LdapServer(IPEndPoint localEndpoint, ServiceConfiguration serviceConfiguration,
+            LdapProxyFactory proxyFactory, ILogger logger)
         {
             _localEndpoint = localEndpoint ?? throw new ArgumentNullException(nameof(localEndpoint));
             _serviceConfiguration = serviceConfiguration ?? throw new ArgumentNullException(nameof(serviceConfiguration));
+            _proxyFactory = proxyFactory ?? throw new ArgumentNullException(nameof(proxyFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -107,7 +111,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         using (var clientStream = await GetClientStream(client))
                         {
-                            var proxy = new LdapProxy(client, clientStream, serverConnection, serverStream, _serviceConfiguration, clientConfiguration, _logger);
+                            var proxy = _proxyFactory.CreateProxy(client, clientStream, serverConnection, serverStream, clientConfiguration);
                             await proxy.Start();
                         }
                     }

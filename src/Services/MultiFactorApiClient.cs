@@ -2,8 +2,8 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
-
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Services.Caching;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -13,29 +13,55 @@ using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Services
 {
+    public class ConnectedClientInfo
+    {
+        public string Username { get; }
+        public ClientConfiguration ClientConfiguration { get; }
+
+        public ConnectedClientInfo(string username, ClientConfiguration clientConfiguration)
+        {
+            if (string.IsNullOrEmpty(username))
+            {
+                throw new ArgumentException($"'{nameof(username)}' cannot be null or empty.", nameof(username));
+            }
+
+            Username = username;
+            ClientConfiguration = clientConfiguration ?? throw new ArgumentNullException(nameof(clientConfiguration));
+        }
+    }
+
     /// <summary>
     /// Service to interact with multifactor web api
     /// </summary>
     public class MultiFactorApiClient
     {
         private ServiceConfiguration _configuration;
+        private readonly AuthenticatedClientCache _clientCache;
         private ILogger _logger;
 
-        public MultiFactorApiClient(ServiceConfiguration configuration, ILogger logger)
+        public MultiFactorApiClient(ServiceConfiguration configuration, AuthenticatedClientCache clientCache, ILogger logger)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _clientCache = clientCache ?? throw new ArgumentNullException(nameof(clientCache));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<bool> Authenticate(ClientConfiguration clientConfig, string userName)
+        public async Task<bool> Authenticate(ConnectedClientInfo connectedClient)
         {
+            //try to get authenticated client to bypass second factor if configured
+            if (_clientCache.TryHitCache(connectedClient.Username, connectedClient.ClientConfiguration))
+            {
+                _logger.Information("Bypass second factor for user '{user:l}'", connectedClient.Username);
+                return true;
+            }
+
             var url = _configuration.ApiUrl + "/access/requests/la";
             var payload = new
             {
-                Identity = userName,
+                Identity = connectedClient.Username,
             };
 
-            var response = await SendRequest(clientConfig, url, payload);
+            var response = await SendRequest(connectedClient.ClientConfiguration, url, payload);
 
             if (response == null)
             {
@@ -44,14 +70,17 @@ namespace MultiFactor.Ldap.Adapter.Services
 
             if (response.Granted && !response.Bypassed)
             {
-                _logger.Information("Second factor for user '{user:l}' verified successfully. Authenticator '{authenticator:l}', account '{account:l}'", userName, response?.Authenticator, response?.Account);
+                _logger.Information("Second factor for user '{user:l}' verified successfully. Authenticator '{authenticator:l}', account '{account:l}'", 
+                    connectedClient.Username, response?.Authenticator, response?.Account);
+                _clientCache.SetCache(connectedClient.Username, connectedClient.ClientConfiguration);
             }
 
             if (response.Denied)
             {
                 var reason = response?.ReplyMessage;
                 var phone = response?.Phone;
-                _logger.Warning("Second factor verification for user '{user:l}' failed with reason='{reason:l}'. User phone {phone:l}", userName, reason, phone);
+                _logger.Warning("Second factor verification for user '{user:l}' failed with reason='{reason:l}'. User phone {phone:l}", 
+                    connectedClient.Username, reason, phone);
             }
 
             return response.Granted;

@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using MultiFactor.Ldap.Adapter.Core;
 using NetTools;
 using Serilog;
 using System;
@@ -51,25 +52,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             return null;
         }
 
-        #region general settings
-
-        /// <summary>
-        /// This service LDAP endpoint
-        /// </summary>
-        public IPEndPoint AdapterLdapEndpoint { get; set; }
-
-        public bool StartLdapServer { get; set; }
-
-        /// <summary>
-        /// This service LDAPS endpoint
-        /// </summary>
-        public IPEndPoint AdapterLdapsEndpoint { get; set; }
-
-        public bool StartLdapsServer { get; set; }
-
-        #endregion
-
-        #region API settings
+        public ILdapServerConfig ServerConfig { get; private set; }
 
         /// <summary>
         /// Multifactor API URL
@@ -79,8 +62,6 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// HTTP Proxy for API
         /// </summary>
         public string ApiProxy { get; set; }
-
-        #endregion
 
         /// <summary>
         /// Logging level
@@ -96,7 +77,6 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public RandomWaiterConfig InvalidCredentialDelay { get; private set; }
 
 
-        #region load config section
 
         /// <summary>
         /// Read and load settings from appSettings configuration section
@@ -108,13 +88,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var appSettingsSection = serviceConfig.GetSection("appSettings");
             var appSettings = appSettingsSection as AppSettingsSection;
 
-
-            var adapterLdapEndpointSetting      = appSettings.Settings["adapter-ldap-endpoint"]?.Value; 
-            var adapterLdapsEndpointSetting     = appSettings.Settings["adapter-ldaps-endpoint"]?.Value;
             var apiUrlSetting                   = appSettings.Settings["multifactor-api-url"]?.Value;
             var apiProxySetting                 = appSettings.Settings["multifactor-api-proxy"]?.Value;
             var logLevelSetting                 = appSettings.Settings["logging-level"]?.Value;
-
 
             if (string.IsNullOrEmpty(apiUrlSetting))
             {
@@ -132,30 +108,12 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 LogLevel = logLevelSetting,
             };
 
-            if (!string.IsNullOrEmpty(adapterLdapEndpointSetting))
-            {
-                if (!TryParseIPEndPoint(adapterLdapEndpointSetting, out var adapterLdapEndpoint))
-                {
-                    throw new Exception("Configuration error: Can't parse 'adapter-ldap-endpoint' value");
-                }
-                configuration.AdapterLdapEndpoint = adapterLdapEndpoint;
-                configuration.StartLdapServer = true;
-            }
-
-            if (!string.IsNullOrEmpty(adapterLdapsEndpointSetting))
-            {
-                if (!TryParseIPEndPoint(adapterLdapsEndpointSetting, out var adapterLdapsEndpoint))
-                {
-                    throw new Exception("Configuration error: Can't parse 'adapter-ldaps-endpoint' value");
-                }
-                configuration.AdapterLdapsEndpoint = adapterLdapsEndpoint;
-                configuration.StartLdapsServer = true;
-            }
-
-            if (!(configuration.StartLdapServer || configuration.StartLdapsServer))
+            var ldapServerConfig = LdapServerConfig.Parse(appSettings);
+            if (ldapServerConfig.IsEmpty)
             {
                 throw new Exception("Configuration error: Neither 'adapter-ldap-endpoint' or 'adapter-ldaps-endpoint' configured");
             }
+            configuration.ServerConfig = ldapServerConfig;
 
             try
             {
@@ -319,38 +277,23 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 }
             }
 
+            try
+            {
+                configuration.AuthenticationCacheLifetime = AuthenticatedClientCacheConfig
+                    .Create(appSettings.Settings[Constants.Configuration.AuthenticationCacheLifetime]?.Value);
+            }
+            catch
+            {
+                throw new Exception($"Configuration error: Can't parse '{Constants.Configuration.AuthenticationCacheLifetime}' value");
+            }
+
             return configuration;
         }
-
-        private static bool TryParseIPEndPoint(string text, out IPEndPoint ipEndPoint)
-        {
-            Uri uri;
-            ipEndPoint = null;
-
-            if (Uri.TryCreate(string.Concat("tcp://", text), UriKind.Absolute, out uri))
-            {
-                ipEndPoint = new IPEndPoint(IPAddress.Parse(uri.Host), uri.Port < 0 ? 0 : uri.Port);
-                return true;
-            }
-            if (Uri.TryCreate(string.Concat("tcp://", string.Concat("[", text, "]")), UriKind.Absolute, out uri))
-            {
-                ipEndPoint = new IPEndPoint(IPAddress.Parse(uri.Host), uri.Port < 0 ? 0 : uri.Port);
-                return true;
-            }
-
-            throw new FormatException($"Failed to parse {text} to IPEndPoint");
-        }
-
-        #endregion
-
-        #region static members
 
         public static string GetLogFormat()
         {
             var appSettings = ConfigurationManager.AppSettings;
             return appSettings?["logging-format"];
         }
-
-        #endregion
     }
 }

@@ -89,6 +89,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// API Secret
         /// </summary>
         public string MultifactorApiSecret { get; set; }
+        public AuthenticatedClientCacheConfig AuthenticationCacheLifetime { get; internal set; }
 
         #endregion
 
