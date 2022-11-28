@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
-using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Server;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,36 +14,19 @@ namespace MultiFactor.Ldap.Adapter
         private readonly CancellationTokenSource _stoppingCts = new CancellationTokenSource();
 
         private ILogger _logger;
-        private ServiceConfiguration _configuration;
+        private readonly IReadOnlyList<LdapServer> _ldapServers;
 
-        private LdapServer _ldapServer;
-        private LdapsServer _ldapsServer;
-
-        public ServerHost(ILogger logger, ServiceConfiguration configuration)
+        public ServerHost(ILogger logger, IReadOnlyList<LdapServer> ldapServers)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-
-            if (_configuration.StartLdapServer)
-            {
-                _ldapServer = new LdapServer(_configuration.AdapterLdapEndpoint, _configuration, logger);
-            }
-            if (_configuration.StartLdapsServer)
-            {
-                _ldapsServer = new LdapsServer(_configuration.AdapterLdapsEndpoint, _configuration, logger);
-            }
+            _ldapServers = ldapServers ?? throw new ArgumentNullException(nameof(ldapServers));
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            if (_configuration.StartLdapServer)
+            foreach (var server in _ldapServers)
             {
-                _ldapServer.Start();
-            }
-
-            if (_configuration.StartLdapsServer)
-            {
-                _ldapsServer.Start();
+                server.Start();
             }
 
             // Store the task we're executing
@@ -70,9 +53,11 @@ namespace MultiFactor.Ldap.Adapter
 
             try
             {
-                _ldapServer?.Stop();
-                _ldapsServer?.Stop();
-                
+                foreach (var server in _ldapServers)
+                {
+                    server.Stop();
+                }
+
                 // Signal cancellation to the executing method
                 _stoppingCts.Cancel();
             }

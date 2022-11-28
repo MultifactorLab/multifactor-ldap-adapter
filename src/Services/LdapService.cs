@@ -4,7 +4,6 @@
 
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Core;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,12 +17,10 @@ namespace MultiFactor.Ldap.Adapter.Services
         //must not repeat proxied messages ids
         private int _messageId = Int32.MaxValue - 9999;
         private readonly ClientConfiguration _config;
-        private ILogger _logger;
 
-        public LdapService(ClientConfiguration config, ILogger logger)
+        public LdapService(ClientConfiguration config)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         #region requests builders

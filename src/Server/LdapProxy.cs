@@ -25,7 +25,7 @@ namespace MultiFactor.Ldap.Adapter.Server
         private TcpClient _serverConnection;
         private Stream _clientStream;
         private Stream _serverStream;
-        private ServiceConfiguration _configuration;
+        private readonly MultiFactorApiClient _apiClient;
         private ClientConfiguration _clientConfig;
         private ILogger _logger;
         private string _userName;
@@ -40,19 +40,21 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         private readonly RandomWaiter _waiter;
 
-        public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, ServiceConfiguration configuration, ClientConfiguration clientConfig, ILogger logger)
+        public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, 
+            ClientConfiguration clientConfig, MultiFactorApiClient apiClient,
+            RandomWaiter waiter, ILogger logger)
         {
             _clientConnection = clientConnection ?? throw new ArgumentNullException(nameof(clientConnection));
             _clientStream = clientStream ?? throw new ArgumentNullException(nameof(clientStream));
             _serverConnection = serverConnection ?? throw new ArgumentNullException(nameof(serverConnection));
             _serverStream = serverStream ?? throw new ArgumentNullException(nameof(serverStream));
 
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+            _waiter = waiter ?? throw new ArgumentNullException(nameof(waiter));
             _clientConfig = clientConfig ?? throw new ArgumentNullException(nameof(clientConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            _ldapService = new LdapService(clientConfig, logger);
-            _waiter = RandomWaiterFactory.CreateWaiter(configuration);
+            _ldapService = new LdapService(clientConfig);
         }
 
         public async Task Start()
@@ -263,8 +265,8 @@ namespace MultiFactor.Ldap.Adapter.Server
                                 }
                             }
                             
-                            var apiClient = new MultiFactorApiClient(_configuration, _logger);
-                            var result = await apiClient.Authenticate(_clientConfig, _userName); //second factor
+                            var connectedClient = new ConnectedClientInfo(_userName, _clientConfig);
+                            var result = await _apiClient.Authenticate(connectedClient); //second factor
 
                             if (!result) // second factor failed
                             {

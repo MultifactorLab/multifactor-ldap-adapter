@@ -1,23 +1,20 @@
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
+using MultiFactor.Ldap.Adapter.Services.Caching;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting;
 using Serilog.Formatting.Compact;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter
 {
@@ -59,8 +56,6 @@ namespace MultiFactor.Ldap.Adapter
 
         private static void ConfigureServices(IServiceCollection services)
         {
-            var path = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + Path.DirectorySeparatorChar;
-
             //create logging
             var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
             var loggerConfiguration = new LoggerConfiguration()
@@ -71,31 +66,36 @@ namespace MultiFactor.Ldap.Adapter
             {
                 loggerConfiguration
                     .WriteTo.Console(formatter)
-                    .WriteTo.File(formatter, $"{path}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
+                    .WriteTo.File(formatter, $"{Core.Constants.ApplicationPath}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
             }
             else
             {
                 loggerConfiguration
                     .WriteTo.Console()
-                    .WriteTo.File($"{path}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
+                    .WriteTo.File($"{Core.Constants.ApplicationPath}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
             }
             
             Log.Logger = loggerConfiguration.CreateLogger();
 
-            //init configuration
             var configuration = ServiceConfiguration.Load(Log.Logger);
 
             SetLogLevel(configuration.LogLevel, levelSwitch);
 
             services.AddSingleton(Log.Logger);
             services.AddSingleton(configuration);
+            services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
+            services.AddSingleton<MultiFactorApiClient>();
+            services.AddSingleton<LdapProxyFactory>();
+            services.AddSingleton<LdapServersFactory>();
+            services.AddSingleton<AuthenticatedClientCache>();
 
             services.AddMemoryCache();
+            services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
             services.AddHostedService<ServerHost>();
 
-            if (configuration.StartLdapsServer)
+            if (configuration.ServerConfig.AdapterLdapEndpoint != null)
             {
-                GetOrCreateTlsCertificate(path, configuration, Log.Logger);
+                GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, configuration, Log.Logger);
             }
         }
 
