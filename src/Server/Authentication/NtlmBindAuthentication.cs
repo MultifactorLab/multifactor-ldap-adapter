@@ -50,5 +50,9 @@ namespace MultiFactor.Ldap.Adapter.Server.Authentication
 
             return null;
         }
+
+        public override void WriteUsername(LdapAttribute bindRequest, string username)
+        {
+        }
     }
 }

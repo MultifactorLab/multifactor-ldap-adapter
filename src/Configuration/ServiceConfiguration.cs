@@ -266,15 +266,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 configuration.LoadActiveDirectoryNestedGroups = loadActiveDirectoryNestedGroups;
             }
 
-            if (userNameTransformRulesSection?.Members != null)
+            if(userNameTransformRulesSection != null)
             {
-                foreach (var member in userNameTransformRulesSection?.Members)
-                {
-                    if (member is UserNameTransformRulesElement rule)
-                    {
-                        configuration.UserNameTransformRules.Add(rule);
-                    }
-                }
+                configuration.UserNameTransformRules.Load(userNameTransformRulesSection);
             }
 
             try

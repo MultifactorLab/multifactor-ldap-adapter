@@ -4,6 +4,7 @@
 
 using MultiFactor.Ldap.Adapter.Core;
 using Serilog;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MultiFactor.Ldap.Adapter.Server.Authentication
@@ -19,7 +20,12 @@ namespace MultiFactor.Ldap.Adapter.Server.Authentication
 
         public override string Parse(LdapAttribute bindRequest)
         {
+            if(bindRequest.ChildAttributes[2].ChildAttributes.Count <= 1)
+            {
+                return null;
+            }
             var creds = bindRequest.ChildAttributes[2].ChildAttributes[1].GetValue<string>();
+
             if (!string.IsNullOrEmpty(creds))
             {
                 var pattern = "username=\"(.*?)\"";
@@ -31,6 +37,10 @@ namespace MultiFactor.Ldap.Adapter.Server.Authentication
             }
 
             return null;
+        }
+
+        public override void WriteUsername(LdapAttribute bindRequest, string username)
+        {
         }
     }
 }

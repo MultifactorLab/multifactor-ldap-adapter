@@ -16,7 +16,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers
 
             if (typeof(T) ==  typeof(BindRequest))
             {
-                return (IRequestModifier<T>)new BindRequestModifier(config.LdapBaseDn, logger);
+                return (IRequestModifier<T>)new BindRequestModifier(config, logger);
             }
             
             if (typeof(T) ==  typeof(SearchRequest))

@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
+using System.Collections.Generic;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -139,10 +140,11 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
                         else
                         {
+
                             //user acc
                             _userName = ConvertDistinguishedNameToCommonName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
-                            _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
+                            _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", _userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
 
                             var modifier = RequestModifierFactory.CreateModifier<BindRequest>(_clientConfig, _logger);
                             var modifiedBytes = modifier.Modify(bindReq).Packet.GetBytes();
@@ -179,7 +181,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                         var bypass = false;
 
                         //apply login transformation users if any
-                        _userName = ProcessUserNameTransformRules();
+                        _userName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeSecondFactor, _logger);
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName);
 
@@ -393,33 +395,6 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             return profile.MemberOf?.Any(g => g.ToLower() == group.ToLower().Trim()) ?? false;
         }
-
-        private string ProcessUserNameTransformRules()
-        {
-            var userName = _userName;
-
-            foreach (var rule in _clientConfig.UserNameTransformRules)
-            {
-                var regex = new Regex(rule.Match);
-                var before = userName;
-                if (rule.Count != null)
-                {
-                    userName = regex.Replace(userName, rule.Replace, rule.Count.Value);
-                }
-                else
-                {
-                    userName = regex.Replace(userName, rule.Replace);
-                }
-
-                if (before != userName)
-                {
-                    _logger.Debug($"Transformed username {before} => {userName}");
-                }
-            }
-
-            return userName;
-        }
-
     }
 
     public enum LdapProxyAuthenticationStatus
