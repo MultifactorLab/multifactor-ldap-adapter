@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Configuration.Injectors;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;
@@ -12,6 +13,7 @@ using Serilog.Formatting;
 using Serilog.Formatting.Compact;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -76,8 +78,8 @@ namespace MultiFactor.Ldap.Adapter
             }
             
             Log.Logger = loggerConfiguration.CreateLogger();
-
-            var configuration = ServiceConfiguration.Load(Log.Logger);
+            var config = new ConfigurationProvider();
+            var configuration = ServiceConfiguration.Load(Log.Logger, config);
 
             SetLogLevel(configuration.LogLevel, levelSwitch);
 

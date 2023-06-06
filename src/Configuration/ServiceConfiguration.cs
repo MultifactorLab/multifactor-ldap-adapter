@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using MultiFactor.Ldap.Adapter.Configuration.Injectors;
 using MultiFactor.Ldap.Adapter.Core;
 using NetTools;
 using Serilog;
@@ -81,9 +82,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// <summary>
         /// Read and load settings from appSettings configuration section
         /// </summary>
-        public static ServiceConfiguration Load(ILogger logger)
+        public static ServiceConfiguration Load(ILogger logger, IConfigurationProvider provider)
         {
-            var serviceConfig = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            var serviceConfig = provider.GetRootConfiguration();
 
             var appSettingsSection = serviceConfig.GetSection("appSettings");
             var appSettings = appSettingsSection as AppSettingsSection;
@@ -124,10 +125,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 throw new Exception($"Configuration error: Can't parse '{Core.Constants.Configuration.PciDss.InvalidCredentialDelay}' value");
             }
 
-            var clientConfigFilesPath = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + Path.DirectorySeparatorChar + "clients";
-            var clientConfigFiles = Directory.Exists(clientConfigFilesPath) ? Directory.GetFiles(clientConfigFilesPath, "*.config") : new string[0];
-
-            if (clientConfigFiles.Length == 0)
+            var clientConfigFiles = provider.GetClientConfiguration();
+            if (clientConfigFiles.Count == 0)
             {
                 //check if we have anything
                 var ldapServer = appSettings.Settings["ldap-server"]?.Value;
@@ -144,18 +143,13 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             }
             else
             {
-                foreach (var clientConfigFile in clientConfigFiles)
+                foreach (var config in clientConfigFiles)
                 {
-                    logger.Information($"Loading client configuration from {Path.GetFileName(clientConfigFile)}");
+                    logger.Information($"Loading client configuration from {Path.GetFileName(config.FilePath)}");
 
-                    var customConfigFileMap = new ExeConfigurationFileMap();
-                    customConfigFileMap.ExeConfigFilename = clientConfigFile;
-
-                    var config = ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None);
-                    var clientSettings = (AppSettingsSection)config.GetSection("appSettings");
                     var userNameTransformRulesSection = config.GetSection("UserNameTransformRules") as UserNameTransformRulesSection;
-
-                    var client = Load(Path.GetFileNameWithoutExtension(clientConfigFile), clientSettings, userNameTransformRulesSection);
+                    var clientSettings = (AppSettingsSection)config.GetSection("appSettings");
+                    var client = Load(Path.GetFileNameWithoutExtension(config.FilePath), clientSettings, userNameTransformRulesSection);
 
                     var ldapClientIpSetting = clientSettings.Settings["ldap-client-ip"]?.Value;
                     if (string.IsNullOrEmpty(ldapClientIpSetting))

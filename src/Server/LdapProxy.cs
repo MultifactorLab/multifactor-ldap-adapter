@@ -181,7 +181,11 @@ namespace MultiFactor.Ldap.Adapter.Server
                         var bypass = false;
 
                         //apply login transformation users if any
-                        _userName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeSecondFactor, _logger);
+                        if(_clientConfig.UserNameTransformRules.BeforeSecondFactor.Count != 0)
+                        {
+                            _logger.Debug("Transform the username before second factor authentication."); ;
+                            _userName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeSecondFactor, _logger);
+                        }
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName);
 

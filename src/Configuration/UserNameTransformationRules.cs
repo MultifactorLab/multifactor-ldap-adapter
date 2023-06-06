@@ -19,13 +19,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
             if (section.Members != null)
             {
-                foreach (var member in section?.Members)
-                {
-                    if (member is UserNameTransformRulesElement rule)
-                    {
-                        BeforeSecondFactor.Add(rule);
-                    }
-                }
+                BeforeSecondFactor.AddRange(
+                  section.Members.Cast<UserNameTransformRulesElement>()
+                );
             }
 
             if (section.BeforeFirstFactor != null)

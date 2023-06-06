@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30907.101
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33723.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiFactor.Ldap.Adapter", "src\MultiFactor.Ldap.Adapter.csproj", "{53E9BBBD-4797-4F21-808C-9CE7A0DAE9FC}"
 EndProject
@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.ru.md = README.ru.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiFactor.Ldap.Adapter.Tests", "tests\MultiFactor.Ldap.Adapter.Tests.csproj", "{8B881B09-CC4E-4CF5-8AE3-EFB4E68DBC0E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{53E9BBBD-4797-4F21-808C-9CE7A0DAE9FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{53E9BBBD-4797-4F21-808C-9CE7A0DAE9FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{53E9BBBD-4797-4F21-808C-9CE7A0DAE9FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B881B09-CC4E-4CF5-8AE3-EFB4E68DBC0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B881B09-CC4E-4CF5-8AE3-EFB4E68DBC0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B881B09-CC4E-4CF5-8AE3-EFB4E68DBC0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B881B09-CC4E-4CF5-8AE3-EFB4E68DBC0E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

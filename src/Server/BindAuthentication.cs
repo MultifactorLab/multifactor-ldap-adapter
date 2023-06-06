@@ -21,7 +21,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         public abstract string MechanismName { get;  }
         public abstract string Parse(LdapAttribute bindRequest);
-        public abstract void WriteUsername(LdapAttribute bindRequest, string username);
+        public virtual void WriteUsername(LdapAttribute bindRequest, string username) { }
 
         public bool TryParse(LdapAttribute bindRequest, out string userName)
         {
