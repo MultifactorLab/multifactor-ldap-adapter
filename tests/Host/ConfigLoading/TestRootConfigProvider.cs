@@ -29,7 +29,7 @@ namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
             return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None, true);
         }
 
-        public List<System.Configuration.Configuration> GetClientConfiguration()
+        public System.Configuration.Configuration[] GetClientConfiguration()
         {
             return _options.ClientConfigFilePaths.Select(path => {
                 var customConfigFileMap = new ExeConfigurationFileMap
@@ -37,7 +37,7 @@ namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
                     ExeConfigFilename = path
                 };
                 return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None, true);
-            }).ToList();
+            }).ToArray();
         }
     }
 }

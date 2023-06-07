@@ -128,7 +128,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             }
 
             var clientConfigFiles = _configurationProvider.GetClientConfiguration();
-            if (clientConfigFiles.Count == 0)
+            if (clientConfigFiles.Length == 0)
             {
                 //check if we have anything
                 var ldapServer = appSettings.Settings["ldap-server"]?.Value;

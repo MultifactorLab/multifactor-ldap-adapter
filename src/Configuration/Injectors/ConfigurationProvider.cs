@@ -8,9 +8,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration.Injectors
 {
     public class ConfigurationProvider : IConfigurationProvider
     {
-        public List<System.Configuration.Configuration> GetClientConfiguration()
+        public System.Configuration.Configuration[] GetClientConfiguration()
         {
-            var clientConfigFilesPath = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + Path.DirectorySeparatorChar + "clients";
+            var clientConfigFilesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "clients");
             var clientConfigFiles = Directory.Exists(clientConfigFilesPath) ? Directory.GetFiles(clientConfigFilesPath, "*.config") : new string[0];
             return clientConfigFiles.Select(clientConfigFile =>
             {
@@ -18,7 +18,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration.Injectors
                 customConfigFileMap.ExeConfigFilename = clientConfigFile;
 
                 return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None);
-            }).ToList();
+            }).ToArray();
         }
 
         public System.Configuration.Configuration GetRootConfiguration()

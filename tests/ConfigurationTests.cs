@@ -1,15 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Moq;
 using MultiFactor.Ldap.Adapter.Configuration;
-using MultiFactor.Ldap.Adapter.Configuration.Injectors;
-using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
-using MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading;
-using Serilog;
 using System;
 using System.Configuration;
-using System.Net;
 using Xunit;
 
 namespace tests

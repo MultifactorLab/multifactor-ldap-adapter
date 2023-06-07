@@ -6,8 +6,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 {
     public class UserNameTransformationRules
     {
-        public List<UserNameTransformRulesElement> BeforeFirstFactor { get; set; } = new List<UserNameTransformRulesElement>();
-        public List<UserNameTransformRulesElement> BeforeSecondFactor { get; set; } = new List<UserNameTransformRulesElement>();
+        public List<UserNameTransformRulesElement> BeforeFirstFactor { get; private set; } = new List<UserNameTransformRulesElement>();
+        public List<UserNameTransformRulesElement> BeforeSecondFactor { get; private set; } = new List<UserNameTransformRulesElement>();
 
 
         public void Load(UserNameTransformRulesSection section)
