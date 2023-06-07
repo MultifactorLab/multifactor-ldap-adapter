@@ -3,40 +3,23 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Configuration.Injectors;
+using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading;
-using MultiFactor.Radius.Adapter.Tests.Fixtures;
 using Serilog;
 using System;
 using System.Configuration;
+using System.Net;
 using Xunit;
 
 namespace tests
 {
     public class ConfigurationTests
     {
-        private IHost PrecreateHost(string rootConfigPath, string[] clientConfigPaths)
-        {
-            return TestHostFactory.CreateHost(services =>
-            {
-                Log.Logger = Mock.Of<ILogger>();
-                var mock = new Mock<ConfigurationProvider>();
-
-                var testConfigProviderOptions = new TestConfigProviderOptions()
-                {
-                    RootConfigFilePath = rootConfigPath,
-                    ClientConfigFilePaths = clientConfigPaths
-                };
-                var configProvider = new TestConfigProvider(testConfigProviderOptions);
-                var configuration = ServiceConfiguration.Load(Log.Logger, configProvider);
-                services.AddSingleton(configuration);
-            });
-        }
-
         [Fact]
         public void ReadConfiguration_ShouldReturnMultiConfig()
         {
-            var configuration = PrecreateHost(
+            var configuration = TestHostFactory.CreateHost(
                 TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
                 new[]
                 {
@@ -51,7 +34,7 @@ namespace tests
         [Fact]
         public void ReadConfiguration_ShouldReturnSingleConfig()
         {
-            var configuration = PrecreateHost(
+            var configuration = TestHostFactory.CreateHost(
                 TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
                 new string[0]
             ).Services.GetRequiredService<ServiceConfiguration>();
@@ -67,7 +50,7 @@ namespace tests
         [InlineData("root-empty-log-level.config", "Configuration error: 'logging-level' element not found")]
         public void ReadConfiguration_SingleModeAndEmptySettings_ShouldThrow(string asset, string errorMessage)
         {
-            Func<ServiceConfiguration> configuration = () => PrecreateHost(
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, asset),
                new string[0]
             ).Services.GetRequiredService<ServiceConfiguration>();
@@ -76,9 +59,23 @@ namespace tests
         }
 
         [Fact]
+        public void ReadConfiguration_MultiConfigWrongLdapServer_ShouldThrow()
+        {
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+                new[]
+                {
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-empty-ldap-server.config")
+                }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            var message = Assert.Throws<Exception>(configuration).Message;
+            Assert.Equal("Configuration error: 'ldap-server' element not found", message);
+        }
+
+        [Fact]
         public void ReadConfiguration_MultiConfigWrongClientIp_ShouldThrow()
         {
-            Func<ServiceConfiguration> configuration = () => PrecreateHost(
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
                 TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
                 new[]
                 {
@@ -91,7 +88,7 @@ namespace tests
         [Fact]
         public void ReadConfiguration_SingleConfigEmptyLdapServerIp_ShouldThrow()
         {
-            Func<ServiceConfiguration> configuration = () => PrecreateHost(
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
                 TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "root-empty-ldap-server.config"),
                 new string[0]
             ).Services.GetRequiredService<ServiceConfiguration>();
@@ -101,7 +98,7 @@ namespace tests
         [Fact]
         public void ReadConfiguration_MultiConfigEmptyLdapServerIp_ShouldThrow()
         {
-            Func<ServiceConfiguration> configuration = () => PrecreateHost(
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
                 TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
                 new[]
                 {

@@ -26,7 +26,7 @@ namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
             {
                 ExeConfigFilename = _options.RootConfigFilePath
             };
-            return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None);
+            return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None, true);
         }
 
         public List<System.Configuration.Configuration> GetClientConfiguration()
@@ -36,7 +36,7 @@ namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
                 {
                     ExeConfigFilename = path
                 };
-                return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None);
+                return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None, true);
             }).ToList();
         }
     }

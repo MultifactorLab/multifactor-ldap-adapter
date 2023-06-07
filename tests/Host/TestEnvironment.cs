@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using System;
 
-namespace MultiFactor.Radius.Adapter.Tests.Fixtures
+namespace MultiFactor.Ldap.Adapter.Tests.Fixtures
 {
     internal enum TestAssetLocation
     {

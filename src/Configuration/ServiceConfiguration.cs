@@ -25,10 +25,14 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// List of clients with identification by client ip
         /// </summary>
         private IDictionary<IPAddress, ClientConfiguration> _ipClients;
-
-        public ServiceConfiguration()
+        private ILogger _logger;
+        private IConfigurationProvider _configurationProvider;
+        public ServiceConfiguration(IConfigurationProvider configurationProvider, ILogger logger)
         {
             _ipClients = new Dictionary<IPAddress, ClientConfiguration>();
+            _logger = logger;
+            _configurationProvider = configurationProvider;
+            Load();
         }
 
         private void AddClient(IPAddress ip, ClientConfiguration client)
@@ -82,9 +86,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// <summary>
         /// Read and load settings from appSettings configuration section
         /// </summary>
-        public static ServiceConfiguration Load(ILogger logger, IConfigurationProvider provider)
+        private void Load()
         {
-            var serviceConfig = provider.GetRootConfiguration();
+            var serviceConfig = _configurationProvider.GetRootConfiguration();
 
             var appSettingsSection = serviceConfig.GetSection("appSettings");
             var appSettings = appSettingsSection as AppSettingsSection;
@@ -102,30 +106,28 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 throw new Exception("Configuration error: 'logging-level' element not found");
             }
 
-            var configuration = new ServiceConfiguration
-            {
-                ApiUrl = apiUrlSetting,
-                ApiProxy = apiProxySetting,
-                LogLevel = logLevelSetting,
-            };
+            ApiUrl = apiUrlSetting;
+            ApiProxy = apiProxySetting;
+            LogLevel = logLevelSetting;
 
             var ldapServerConfig = LdapServerConfig.Parse(appSettings);
             if (ldapServerConfig.IsEmpty)
             {
                 throw new Exception("Configuration error: Neither 'adapter-ldap-endpoint' or 'adapter-ldaps-endpoint' configured");
             }
-            configuration.ServerConfig = ldapServerConfig;
+            
+            ServerConfig = ldapServerConfig;
 
             try
             {
-                configuration.InvalidCredentialDelay = RandomWaiterConfig.Create(appSettings.Settings[Core.Constants.Configuration.PciDss.InvalidCredentialDelay]?.Value);
+                InvalidCredentialDelay = RandomWaiterConfig.Create(appSettings.Settings[Core.Constants.Configuration.PciDss.InvalidCredentialDelay]?.Value);
             }
             catch
             {
                 throw new Exception($"Configuration error: Can't parse '{Core.Constants.Configuration.PciDss.InvalidCredentialDelay}' value");
             }
 
-            var clientConfigFiles = provider.GetClientConfiguration();
+            var clientConfigFiles = _configurationProvider.GetClientConfiguration();
             if (clientConfigFiles.Count == 0)
             {
                 //check if we have anything
@@ -135,17 +137,17 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                     throw new ConfigurationErrorsException("No clients' config files found. Use one of the *.template files in the /clients folder to customize settings. Then save this file as *.config.");
                 }
 
-                var userNameTransformRulesSection = ConfigurationManager.GetSection("UserNameTransformRules") as UserNameTransformRulesSection;
+                var userNameTransformRulesSection = serviceConfig.GetSection("UserNameTransformRules") as UserNameTransformRulesSection;
 
                 var client = Load("General", appSettings, userNameTransformRulesSection);
-                configuration.AddClient(IPAddress.Any, client);
-                configuration.SingleClientMode = true;
+                AddClient(IPAddress.Any, client);
+                SingleClientMode = true;
             }
             else
             {
                 foreach (var config in clientConfigFiles)
                 {
-                    logger.Information($"Loading client configuration from {Path.GetFileName(config.FilePath)}");
+                    _logger.Information($"Loading client configuration from {Path.GetFileName(config.FilePath)}");
 
                     var userNameTransformRulesSection = config.GetSection("UserNameTransformRules") as UserNameTransformRulesSection;
                     var clientSettings = (AppSettingsSection)config.GetSection("appSettings");
@@ -162,14 +164,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                     {
                         foreach (var ip in IPAddressRange.Parse(element))
                         {
-                            configuration.AddClient(ip, client);
+                            AddClient(ip, client);
                         }
                     }
                 }
             }
-
-
-            return configuration;
         }
 
         private static ClientConfiguration Load(string name, AppSettingsSection appSettings, UserNameTransformRulesSection userNameTransformRulesSection)
