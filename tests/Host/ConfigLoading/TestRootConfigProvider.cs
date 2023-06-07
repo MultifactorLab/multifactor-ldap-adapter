@@ -1,4 +1,4 @@
-﻿using MultiFactor.Ldap.Adapter.Configuration.Injectors;
+﻿using MultiFactor.Ldap.Adapter.Configuration.Core;
 using System;
 using System.Collections.Generic;
 using System.Configuration;

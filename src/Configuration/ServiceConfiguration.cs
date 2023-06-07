@@ -2,8 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
-using MultiFactor.Ldap.Adapter.Configuration.Injectors;
-using MultiFactor.Ldap.Adapter.Core;
+using MultiFactor.Ldap.Adapter.Configuration.Core;
 using NetTools;
 using Serilog;
 using System;
@@ -13,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using MultiFactor.Ldap.Adapter.Core;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -120,11 +120,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
             try
             {
-                InvalidCredentialDelay = RandomWaiterConfig.Create(appSettings.Settings[Core.Constants.Configuration.PciDss.InvalidCredentialDelay]?.Value);
+                InvalidCredentialDelay = RandomWaiterConfig.Create(appSettings.Settings[Constants.Configuration.PciDss.InvalidCredentialDelay]?.Value);
             }
             catch
             {
-                throw new Exception($"Configuration error: Can't parse '{Core.Constants.Configuration.PciDss.InvalidCredentialDelay}' value");
+                throw new Exception($"Configuration error: Can't parse '{Constants.Configuration.PciDss.InvalidCredentialDelay}' value");
             }
 
             var clientConfigFiles = _configurationProvider.GetClientConfiguration();

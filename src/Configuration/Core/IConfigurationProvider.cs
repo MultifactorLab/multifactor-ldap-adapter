@@ -1,5 +1,5 @@
 ﻿
-namespace MultiFactor.Ldap.Adapter.Configuration.Injectors
+namespace MultiFactor.Ldap.Adapter.Configuration.Core
 {
     public interface IConfigurationProvider
     {

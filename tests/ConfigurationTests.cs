@@ -3,6 +3,7 @@ using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
 using System;
 using System.Configuration;
+using System.Net;
 using Xunit;
 
 namespace tests
@@ -22,6 +23,9 @@ namespace tests
             
             Assert.NotNull(configuration);
             Assert.False(configuration.SingleClientMode);
+            var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
+            Assert.NotNull(client);
+            Assert.Equal("test", client.MultifactorApiSecret);
         }
 
         [Fact]

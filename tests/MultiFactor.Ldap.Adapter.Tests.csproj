@@ -21,6 +21,7 @@
     <None Remove="Assets\root-wrong-username-transform-rules.config" />
     <None Remove="Assets\username-transform-rules-empty-test.config" />
     <None Remove="Assets\username-transform-rules-obsolete-test.config" />
+    <None Remove="Assets\username-transform-rules-obsolete-with-new-test.config" />
     <None Remove="Assets\username-transform-rules-wrong-test.config" />
   </ItemGroup>
 
@@ -84,6 +85,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\username-transform-rules-obsolete-with-new-test.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\username-transform-rules-wrong-test.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

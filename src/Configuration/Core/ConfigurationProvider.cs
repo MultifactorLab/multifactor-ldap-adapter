@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
 
-namespace MultiFactor.Ldap.Adapter.Configuration.Injectors
+namespace MultiFactor.Ldap.Adapter.Configuration.Core
 {
     public class ConfigurationProvider : IConfigurationProvider
     {

@@ -4,6 +4,7 @@ using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
 using System;
 using System.Configuration;
+using System.Linq;
 using System.Net;
 using Xunit;
 
@@ -33,6 +34,21 @@ namespace MultiFactor.Ldap.Adapter.Tests
             ).Services.GetRequiredService<ServiceConfiguration>();
             Assert.True(configuration.GetClient(IPAddress.Any).UserNameTransformRules.BeforeFirstFactor.Count == 0);
             Assert.True(configuration.GetClient(IPAddress.Any).UserNameTransformRules.BeforeSecondFactor.Count > 0);
+        }
+
+        [Fact]
+        public void UsernameTransformRules_RootObsoleteRulesShouldBeAddedToSecondFactor()
+        {
+            var configuration = TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "username-transform-rules-obsolete-with-new-test.config"),
+                new string[0]
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            var client = configuration.GetClient(IPAddress.Any);
+            Assert.True(client.UserNameTransformRules.BeforeFirstFactor.Count == 1);
+            Assert.True(client.UserNameTransformRules.BeforeSecondFactor.Count == 2);
+            var toMatch = client.UserNameTransformRules.BeforeSecondFactor.Select(x => x.Match);
+            Assert.Contains(toMatch, x => x == "d.jones");
+            Assert.Contains(toMatch, x => x == "d.jones2");
         }
 
 

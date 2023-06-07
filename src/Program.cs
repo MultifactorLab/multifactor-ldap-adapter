@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MultiFactor.Ldap.Adapter.Configuration;
-using MultiFactor.Ldap.Adapter.Configuration.Injectors;
+using MultiFactor.Ldap.Adapter.Configuration.Core;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using MultiFactor.Ldap.Adapter.Configuration;
-using MultiFactor.Ldap.Adapter.Configuration.Injectors;
+using MultiFactor.Ldap.Adapter.Configuration.Core;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading;
 using Serilog;
 using System;
