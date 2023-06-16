@@ -145,7 +145,10 @@ namespace MultiFactor.Ldap.Adapter.Server
                             _userName = ConvertDistinguishedNameToCommonName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
                             _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", _userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
-
+                            if (_clientConfig.UserNameTransformRules.BeforeFirstFactor.Count != 0)
+                            {
+                                _userName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeFirstFactor);
+                            }
                             var modifier = RequestModifierFactory.CreateModifier<BindRequest>(_clientConfig, _logger);
                             var modifiedBytes = modifier.Modify(bindReq).Packet.GetBytes();
                             return await Task.FromResult((modifiedBytes, modifiedBytes.Length));
