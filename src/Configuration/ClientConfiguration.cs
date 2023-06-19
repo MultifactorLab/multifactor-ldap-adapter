@@ -20,7 +20,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
             LoadActiveDirectoryNestedGroups = true;
 
-            UserNameTransformRules = new List<UserNameTransformRulesElement>();
+            UserNameTransformRules = new UserNameTransformationRules();
         }
 
         #region general settings
@@ -74,8 +74,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// <summary>
         /// Username transfor rules
         /// </summary>
-        public IList<UserNameTransformRulesElement> UserNameTransformRules { get; set; }
-
+        public UserNameTransformationRules UserNameTransformRules { get; set; }
         #endregion
 
         #region API settings

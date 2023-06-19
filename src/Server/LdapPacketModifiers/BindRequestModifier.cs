@@ -1,7 +1,9 @@
-﻿using MultiFactor.Ldap.Adapter.Core;
+﻿using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Core.Abstractions;
 using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.Authentication;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Serilog;
 using System;
 using System.Linq;
@@ -10,12 +12,12 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers
 {
     public class BindRequestModifier : IRequestModifier<BindRequest>
     {
-        private readonly string _bindDn;
+        private readonly ClientConfiguration _config;
         private readonly ILogger _logger;
 
-        public BindRequestModifier(string bindDn, ILogger logger)
+        public BindRequestModifier(ClientConfiguration configuration, ILogger logger)
         {
-            _bindDn = bindDn;
+            _config = configuration;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -24,11 +26,18 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers
             if (request is null) throw new ArgumentNullException(nameof(request));
 
             var auth = new BindAuthenticationFactory(_logger).GetAuthentication(request.BindAttribute);
-            if (auth == null || auth.MechanismName != "Simple") return request;
-            if (string.IsNullOrWhiteSpace(_bindDn)) return request;
+            
+            if (auth == null) return request;
 
             if (!auth.TryParse(request.BindAttribute, out var username))
             {
+                return request;
+            }
+
+
+            if (string.IsNullOrWhiteSpace(_config.LdapBaseDn) || auth.MechanismName != "Simple")
+            {
+                ModifyUserName(auth, request, username);
                 return request;
             }
 
@@ -60,16 +69,27 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers
 
                 modifiedPacket.ChildAttributes.Add(bindAttr);
             }
-
-            return new BindRequest(modifiedPacket, bindAttr);
+            var result = new BindRequest(modifiedPacket, bindAttr);
+            ModifyUserName(auth, result, username);
+            return result;
         }
 
+
+        private void ModifyUserName(BindAuthentication auth, BindRequest request, string username)
+        {
+            if (_config.UserNameTransformRules.BeforeFirstFactor.Count != 0)
+            {
+                _logger.Debug("Transform the username before first factor authentication."); ;
+                username = UserNameTransformer.ProcessUserNameTransformRules(username, _config.UserNameTransformRules.BeforeFirstFactor, _logger);
+                auth.WriteUsername(request.BindAttribute, username);
+            }
+        }
         private string EnrichUsername(string username)
         {
             var bindDn = $"uid={username}";
-            if (!string.IsNullOrEmpty(_bindDn))
+            if (!string.IsNullOrEmpty(_config.LdapBaseDn))
             {
-                return $"{bindDn},{_bindDn}";
+                return $"{bindDn},{_config.LdapBaseDn}";
             }
 
             return bindDn;

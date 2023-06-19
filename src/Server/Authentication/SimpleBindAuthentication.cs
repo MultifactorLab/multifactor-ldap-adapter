@@ -4,6 +4,8 @@
 
 using MultiFactor.Ldap.Adapter.Core;
 using Serilog;
+using System;
+using System.Text;
 
 namespace MultiFactor.Ldap.Adapter.Server.Authentication
 {
@@ -25,6 +27,11 @@ namespace MultiFactor.Ldap.Adapter.Server.Authentication
             }
 
             return userName;
+        }
+
+        public override void WriteUsername(LdapAttribute bindRequest, string username)
+        {
+            bindRequest.ChildAttributes[1].Value = Encoding.UTF8.GetBytes(username);
         }
     }
 }

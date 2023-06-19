@@ -1,6 +1,7 @@
 ﻿using System.Configuration;
 using System;
 using System.Net;
+using MultiFactor.Ldap.Adapter.Core;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -24,22 +25,22 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             IPEndPoint adapterLdapEndpoint = null;
             IPEndPoint adapterLdapsEndpoint = null;
 
-            var ldapEndpointSetting = appSettings.Settings[Core.Constants.Configuration.AdapterLdapEndpoint]?.Value;
+            var ldapEndpointSetting = appSettings.Settings[Constants.Configuration.AdapterLdapEndpoint]?.Value;
             if (!string.IsNullOrEmpty(ldapEndpointSetting))
             {
                 if (!TryParseIPEndPoint(ldapEndpointSetting, out var ldapEndpoint))
                 {
-                    throw new Exception($"Configuration error: Can't parse '{Core.Constants.Configuration.AdapterLdapEndpoint}' value");
+                    throw new Exception($"Configuration error: Can't parse '{Constants.Configuration.AdapterLdapEndpoint}' value");
                 }
                 adapterLdapEndpoint = ldapEndpoint;
             }
 
-            var ldapsEndpointSetting = appSettings.Settings[Core.Constants.Configuration.AdapterLdapsEndpoint]?.Value;
+            var ldapsEndpointSetting = appSettings.Settings[Constants.Configuration.AdapterLdapsEndpoint]?.Value;
             if (!string.IsNullOrEmpty(ldapsEndpointSetting))
             {
                 if (!TryParseIPEndPoint(ldapsEndpointSetting, out var ldapsEndpoint))
                 {
-                    throw new Exception($"Configuration error: Can't parse '{Core.Constants.Configuration.AdapterLdapsEndpoint}' value");
+                    throw new Exception($"Configuration error: Can't parse '{Constants.Configuration.AdapterLdapsEndpoint}' value");
                 }
                 adapterLdapsEndpoint = ldapsEndpoint;
             }

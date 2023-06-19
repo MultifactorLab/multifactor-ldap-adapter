@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
+using System.Collections.Generic;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -30,6 +31,7 @@ namespace MultiFactor.Ldap.Adapter.Server
         private ILogger _logger;
         private string _userName;
         private string _lookupUserName;
+        private string _transformedUserName;
 
         private LdapService _ldapService;
 
@@ -139,10 +141,18 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
                         else
                         {
+
                             //user acc
                             _userName = ConvertDistinguishedNameToCommonName(userName);
                             _status = LdapProxyAuthenticationStatus.BindRequested;
-                            _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
+                            _logger.Information($"Received {authentication.MechanismName} bind request for user '{{user:l}}' from {{client}} {{clientName:l}}", _userName, _clientConnection.Client.RemoteEndPoint, _clientConfig.Name);
+
+                            // To display a login message we need to save the transformation result
+                            _transformedUserName = _userName;
+                            if (_clientConfig.UserNameTransformRules.BeforeFirstFactor.Count != 0)
+                            {
+                                _transformedUserName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeFirstFactor);
+                            }
 
                             var modifier = RequestModifierFactory.CreateModifier<BindRequest>(_clientConfig, _logger);
                             var modifiedBytes = modifier.Modify(bindReq).Packet.GetBytes();
@@ -174,12 +184,16 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                     if (bound)  //first factor authenticated
                     {
-                        _logger.Information("User '{user:l}' credential verified successfully at {server}", _userName, _serverConnection.Client.RemoteEndPoint);
+                        _logger.Information("User '{user:l}' credential verified successfully at {server}", _transformedUserName, _serverConnection.Client.RemoteEndPoint);
 
                         var bypass = false;
 
                         //apply login transformation users if any
-                        _userName = ProcessUserNameTransformRules();
+                        if(_clientConfig.UserNameTransformRules.BeforeSecondFactor.Count != 0)
+                        {
+                            _logger.Debug("Transform the username before second factor authentication."); ;
+                            _userName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeSecondFactor, _logger);
+                        }
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName);
 
@@ -293,7 +307,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                         //just log
                         var reason = bindResponse.ChildAttributes[2].GetValue<string>();
                         await _waiter.WaitSomeTimeAsync();
-                        _logger.Warning("Verification user '{user:l}' at {server} failed: {reason}", _userName, _serverConnection.Client.RemoteEndPoint, reason);
+                        _logger.Warning("Verification user '{user:l}' at {server} failed: {reason}", _transformedUserName, _serverConnection.Client.RemoteEndPoint, reason);
                     }
                 }
             }
@@ -393,33 +407,6 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             return profile.MemberOf?.Any(g => g.ToLower() == group.ToLower().Trim()) ?? false;
         }
-
-        private string ProcessUserNameTransformRules()
-        {
-            var userName = _userName;
-
-            foreach (var rule in _clientConfig.UserNameTransformRules)
-            {
-                var regex = new Regex(rule.Match);
-                var before = userName;
-                if (rule.Count != null)
-                {
-                    userName = regex.Replace(userName, rule.Replace, rule.Count.Value);
-                }
-                else
-                {
-                    userName = regex.Replace(userName, rule.Replace);
-                }
-
-                if (before != userName)
-                {
-                    _logger.Debug($"Transformed username {before} => {userName}");
-                }
-            }
-
-            return userName;
-        }
-
     }
 
     public enum LdapProxyAuthenticationStatus

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Configuration.Core;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;
@@ -13,6 +14,7 @@ using Serilog.Formatting.Compact;
 using System;
 using System.IO;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
@@ -30,7 +32,6 @@ namespace MultiFactor.Ldap.Adapter
                     .CreateDefaultBuilder(args)
                     .ConfigureServices(services => ConfigureServices(services))
                     .Build();
-
                 host.Run();
             }
             catch (Exception ex)
@@ -57,6 +58,31 @@ namespace MultiFactor.Ldap.Adapter
         private static void ConfigureServices(IServiceCollection services)
         {
             //create logging
+            var levelSwitch = ConfigureLogging(services);
+
+            services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
+            services.AddSingleton<ServiceConfiguration>();
+
+            services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
+            services.AddSingleton<MultiFactorApiClient>();
+            services.AddSingleton<LdapProxyFactory>();
+            services.AddSingleton<LdapServersFactory>();
+            services.AddSingleton<AuthenticatedClientCache>();
+            services.AddMemoryCache();
+            services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
+            services.AddHostedService<ServerHost>();
+            
+            var prov = services.BuildServiceProvider();
+            var configuration = prov.GetRequiredService<ServiceConfiguration>();
+            SetLogLevel(configuration.LogLevel, levelSwitch);
+            if (configuration.ServerConfig.AdapterLdapsEndpoint != null)
+            {
+                GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, configuration, Log.Logger);
+            }
+        }
+
+        private static LoggingLevelSwitch ConfigureLogging(IServiceCollection services)
+        {
             var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
             var loggerConfiguration = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch);
@@ -74,29 +100,9 @@ namespace MultiFactor.Ldap.Adapter
                     .WriteTo.Console()
                     .WriteTo.File($"{Core.Constants.ApplicationPath}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
             }
-            
             Log.Logger = loggerConfiguration.CreateLogger();
-
-            var configuration = ServiceConfiguration.Load(Log.Logger);
-
-            SetLogLevel(configuration.LogLevel, levelSwitch);
-
             services.AddSingleton(Log.Logger);
-            services.AddSingleton(configuration);
-            services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
-            services.AddSingleton<MultiFactorApiClient>();
-            services.AddSingleton<LdapProxyFactory>();
-            services.AddSingleton<LdapServersFactory>();
-            services.AddSingleton<AuthenticatedClientCache>();
-
-            services.AddMemoryCache();
-            services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
-            services.AddHostedService<ServerHost>();
-
-            if (configuration.ServerConfig.AdapterLdapEndpoint != null)
-            {
-                GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, configuration, Log.Logger);
-            }
+            return levelSwitch;
         }
 
         private static void SetLogLevel(string level, LoggingLevelSwitch levelSwitch)
