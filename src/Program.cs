@@ -14,7 +14,6 @@ using Serilog.Formatting.Compact;
 using System;
 using System.IO;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
@@ -61,7 +60,17 @@ namespace MultiFactor.Ldap.Adapter
             var levelSwitch = ConfigureLogging(services);
 
             services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
-            services.AddSingleton<ServiceConfiguration>();
+            services.AddSingleton(sp => {
+                var configurationProvider = sp.GetRequiredService<IConfigurationProvider>();
+                var logger = sp.GetRequiredService<ILogger>();
+                var serviceConf = new ServiceConfiguration(configurationProvider, logger);
+                SetLogLevel(serviceConf.LogLevel, levelSwitch);
+                if (serviceConf.ServerConfig.AdapterLdapsEndpoint != null)
+                {
+                    GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, serviceConf, Log.Logger);
+                }
+                return serviceConf;
+            });
 
             services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
             services.AddSingleton<MultiFactorApiClient>();
@@ -71,14 +80,6 @@ namespace MultiFactor.Ldap.Adapter
             services.AddMemoryCache();
             services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
             services.AddHostedService<ServerHost>();
-            
-            var prov = services.BuildServiceProvider();
-            var configuration = prov.GetRequiredService<ServiceConfiguration>();
-            SetLogLevel(configuration.LogLevel, levelSwitch);
-            if (configuration.ServerConfig.AdapterLdapsEndpoint != null)
-            {
-                GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, configuration, Log.Logger);
-            }
         }
 
         private static LoggingLevelSwitch ConfigureLogging(IServiceCollection services)
