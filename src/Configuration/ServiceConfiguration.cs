@@ -270,7 +270,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 configuration.LogLevel = logLevel;
             }
 
-            if(!string.IsNullOrEmpty(logLevel))
+            if(!string.IsNullOrEmpty(logFormat))
             {
                 configuration.LogFormat = logFormat;
             }
