@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
+using Serilog.Core;
 using System.Net;
 using Xunit;
 
@@ -44,14 +45,52 @@ namespace MultiFactor.Ldap.Adapter.Tests
             ).Services.GetRequiredService<ServiceConfiguration>();
 
             var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
-            var provider = new ClientLoggerFactory(null);
+            var provider = new ClientLoggerFactory();
             var logger = provider.GetLogger(client);
             Assert.NotNull(logger);
             Assert.True(logger.IsEnabled(Serilog.Events.LogEventLevel.Warning));
             Assert.False(logger.IsEnabled(Serilog.Events.LogEventLevel.Debug));
         }
+
+
+
+        [Fact]
+        public void ShouldLoad_CreateNotCreateLoggerTwice()
+        {
+            var configuration = TestHostFactory.CreateHost(
+                  TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+                  new[]
+                  {
+                        TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal.config")
+                  }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+
+            var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
+            var provider = new ClientLoggerFactory();
+            var logger = provider.GetLogger(client);
+            Assert.NotNull(logger);
+            var logger2 = provider.GetLogger(client);
+            Assert.True(logger == logger2);
+        }
+
+        [Fact]
+        public void ShouldLoad_CreateCreateGlobalLoggeer()
+        {
+            var configuration = TestHostFactory.CreateHost(
+                  TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+                  new[]
+                  {
+                        TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal.config")
+                  }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+
+            var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
+            var provider = new ClientLoggerFactory();
+            var levelSwitch = new LoggingLevelSwitch();
+            var logger = provider.GetLogger(levelSwitch);
+            Assert.NotNull(logger);
+            var logger2 = provider.GetLogger(client);
+            Assert.True(logger != logger2);
+        }
     }
-
-
-
 }

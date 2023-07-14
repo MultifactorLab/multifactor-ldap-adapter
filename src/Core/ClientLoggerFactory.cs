@@ -14,13 +14,19 @@ namespace MultiFactor.Ldap.Adapter.Core
 {
     public class ClientLoggerFactory
     {
-        private readonly ILogger _globalLogger;
+        private ILogger _globalLogger = null;
+        private LoggingLevelSwitch _globalLoggerLevelSwitch = null;
         private Dictionary<string,  ILogger> _loggerMap = new Dictionary<string, ILogger>();
-        public ClientLoggerFactory(ILogger globalLogger)
+       
+        public ILogger GetLogger(LoggingLevelSwitch loggingLevelSwitch)
         {
-            _globalLogger = globalLogger;
+            if (_globalLogger == null)
+            {
+                _globalLogger = CreateLogger(null, loggingLevelSwitch);
+            }
+            return _globalLogger;
         }
-        
+
         public ILogger GetLogger(ClientConfiguration configuration)
         {
             if(string.IsNullOrEmpty(configuration.LogLevel))
@@ -29,14 +35,14 @@ namespace MultiFactor.Ldap.Adapter.Core
             }
             if(!_loggerMap.ContainsKey(configuration.Name))
             {
-                _loggerMap[configuration.Name] = CreateLogger(configuration);
+                var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
+                _loggerMap[configuration.Name] = CreateLogger(configuration, levelSwitch);
             }
             return _loggerMap[configuration.Name];
         }
         
-        private ILogger CreateLogger(ClientConfiguration configuration)
+        private ILogger CreateLogger(ClientConfiguration configuration, LoggingLevelSwitch levelSwitch)
         {
-            var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
             var loggerConfiguration = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch);
 
@@ -53,15 +59,23 @@ namespace MultiFactor.Ldap.Adapter.Core
                     .WriteTo.Console()
                     .WriteTo.File($"{Core.Constants.ApplicationPath}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
             }
-            SetLogLevel(configuration.LogLevel, levelSwitch);
-            var logger = loggerConfiguration.CreateLogger();
-            logger.Information($"Logging level {levelSwitch.MinimumLevel} for client {configuration.Name}");
+            ILogger logger;
+            if(configuration != null)
+            {
+                SetLogLevel(configuration.LogLevel, levelSwitch);
+                logger = loggerConfiguration.CreateLogger();
+                logger.Information($"Logging level {levelSwitch.MinimumLevel} for client {configuration.Name}");
+            } 
+            else
+            {
+                logger = loggerConfiguration.CreateLogger();
+            }
             return logger;
         }
 
         private ITextFormatter GetLogFormatter(ClientConfiguration configuration)
         {
-            var format = configuration.LogFormat;
+            var format = (configuration == null) ? ServiceConfiguration.GetLogFormat() : configuration.LogFormat;
             switch (format?.ToLower())
             {
                 case "json":
@@ -71,7 +85,7 @@ namespace MultiFactor.Ldap.Adapter.Core
             }
         }
 
-        private void SetLogLevel(string level, LoggingLevelSwitch levelSwitch)
+        public void SetLogLevel(string level, LoggingLevelSwitch levelSwitch)
         {
             switch (level)
             {

@@ -58,21 +58,27 @@ namespace MultiFactor.Ldap.Adapter
         private static void ConfigureServices(IServiceCollection services)
         {
             //create logging
-            var levelSwitch = ConfigureLogging(services);
+            var loggingLevelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
+            services.AddSingleton<ClientLoggerFactory>();
+            services.AddSingleton(sp => { 
+                var logFactory = sp.GetRequiredService<ClientLoggerFactory>();
+                Log.Logger = logFactory.GetLogger(loggingLevelSwitch);
+                return Log.Logger;
+            });
 
             services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
             services.AddSingleton(sp => {
                 var configurationProvider = sp.GetRequiredService<IConfigurationProvider>();
                 var logger = sp.GetRequiredService<ILogger>();
+                var logFactory = sp.GetRequiredService<ClientLoggerFactory>();
                 var serviceConf = new ServiceConfiguration(configurationProvider, logger);
-                SetLogLevel(serviceConf.LogLevel, levelSwitch);
+                logFactory.SetLogLevel(serviceConf.LogLevel, loggingLevelSwitch);
                 if (serviceConf.ServerConfig.AdapterLdapsEndpoint != null)
                 {
                     GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, serviceConf, Log.Logger);
                 }
                 return serviceConf;
             });
-            services.AddSingleton<ClientLoggerFactory>();
             services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
             services.AddSingleton<MultiFactorApiClient>();
             services.AddSingleton<LdapProxyFactory>();
@@ -81,52 +87,6 @@ namespace MultiFactor.Ldap.Adapter
             services.AddMemoryCache();
             services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
             services.AddHostedService<ServerHost>();
-        }
-
- 
-        private static LoggingLevelSwitch ConfigureLogging(IServiceCollection services)
-        {
-            var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
-            var loggerConfiguration = new LoggerConfiguration()
-                .MinimumLevel.ControlledBy(levelSwitch);
-
-            var formatter = GetLogFormatter();
-            if (formatter != null)
-            {
-                loggerConfiguration
-                    .WriteTo.Console(formatter)
-                    .WriteTo.File(formatter, $"{Core.Constants.ApplicationPath}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
-            }
-            else
-            {
-                loggerConfiguration
-                    .WriteTo.Console()
-                    .WriteTo.File($"{Core.Constants.ApplicationPath}logs{Path.DirectorySeparatorChar}log-.txt", rollingInterval: RollingInterval.Day);
-            }
-            Log.Logger = loggerConfiguration.CreateLogger();
-            services.AddSingleton(Log.Logger);
-            return levelSwitch;
-        }
-
-        private static void SetLogLevel(string level, LoggingLevelSwitch levelSwitch)
-        {
-            switch (level)
-            {
-                case "Debug":
-                    levelSwitch.MinimumLevel = LogEventLevel.Debug;
-                    break;
-                case "Info":
-                    levelSwitch.MinimumLevel = LogEventLevel.Information;
-                    break;
-                case "Warn":
-                    levelSwitch.MinimumLevel = LogEventLevel.Warning;
-                    break;
-                case "Error":
-                    levelSwitch.MinimumLevel = LogEventLevel.Error;
-                    break;
-            }
-
-            Log.Logger.Information($"Logging level: {levelSwitch.MinimumLevel}");
         }
 
         private static void GetOrCreateTlsCertificate(string path, ServiceConfiguration configuration, Serilog.ILogger logger)
@@ -180,18 +140,6 @@ namespace MultiFactor.Ldap.Adapter
             }
 
             return stringBuilder.ToString();
-        }
-
-        private static ITextFormatter GetLogFormatter()
-        {
-            var format = ServiceConfiguration.GetLogFormat();
-            switch (format?.ToLower())
-            {
-                case "json":
-                    return new RenderedCompactJsonFormatter();
-                default:
-                    return null;
-            }
         }
     }
 }
