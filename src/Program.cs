@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Configuration.Core;
-using MultiFactor.Ldap.Adapter.Core;
+using MultiFactor.Ldap.Adapter.Core.Logging;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;
@@ -59,20 +59,17 @@ namespace MultiFactor.Ldap.Adapter
         {
             //create logging
             var loggingLevelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
-            services.AddSingleton<ClientLoggerFactory>();
-            services.AddSingleton(sp => { 
-                var logFactory = sp.GetRequiredService<ClientLoggerFactory>();
-                Log.Logger = logFactory.GetLogger(loggingLevelSwitch);
-                return Log.Logger;
-            });
+            services.AddSingleton<LoggerFactory>();
+            services.AddSingleton<ClientLoggerProvider>();
 
+            
             services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
             services.AddSingleton(sp => {
                 var configurationProvider = sp.GetRequiredService<IConfigurationProvider>();
                 var logger = sp.GetRequiredService<ILogger>();
-                var logFactory = sp.GetRequiredService<ClientLoggerFactory>();
+                var logFactory = sp.GetRequiredService<LoggerFactory>();
                 var serviceConf = new ServiceConfiguration(configurationProvider, logger);
-                logFactory.SetLogLevel(serviceConf.LogLevel, loggingLevelSwitch);
+                //slogFactory.SetLogLevel(serviceConf.LogLevel, loggingLevelSwitch);
                 if (serviceConf.ServerConfig.AdapterLdapsEndpoint != null)
                 {
                     GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, serviceConf, Log.Logger);
