@@ -13,6 +13,8 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using MultiFactor.Ldap.Adapter.Core;
+using Microsoft.Extensions.DependencyInjection;
+using MultiFactor.Ldap.Adapter.Core.Logging;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -297,6 +299,12 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         {
             var appSettings = ConfigurationManager.AppSettings;
             return appSettings?["logging-format"];
+        }
+
+        public static string GetLogLevel()
+        {
+            var appSettings = ConfigurationManager.AppSettings;
+            return appSettings?["logging-level"];
         }
     }
 }

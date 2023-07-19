@@ -4,15 +4,18 @@ using System.IO;
 using ILogger = Serilog.ILogger;
 using Serilog.Formatting.Compact;
 using Serilog.Formatting;
+using Serilog.Events;
 
 namespace MultiFactor.Ldap.Adapter.Core.Logging
 {
-    public class LoggerFactory
+    public static class LoggerFactory
     {
-        public ILogger CreateLogger(string logFormat, string logLevel, LoggingLevelSwitch levelSwitch)
+        public static ILogger CreateLogger(string logFormat, string logLevel)
         {
+            var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
+            levelSwitch.SetLogLevel(logLevel);
             var loggerConfiguration = new LoggerConfiguration()
-                .MinimumLevel.ControlledBy(levelSwitch);
+                           .MinimumLevel.ControlledBy(levelSwitch);
 
             var formatter = GetLogFormatter(logFormat);
             if (formatter != null)
@@ -31,7 +34,7 @@ namespace MultiFactor.Ldap.Adapter.Core.Logging
             return loggerConfiguration.CreateLogger();
         }
 
-        private ITextFormatter GetLogFormatter(string format)
+        private static ITextFormatter GetLogFormatter(string format)
         {
             switch (format?.ToLower())
             {

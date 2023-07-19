@@ -356,7 +356,7 @@ namespace MultiFactor.Ldap.Adapter.Server
         private string SearchUserName(LdapAttribute attr)
         {
             var userNameAttrs = new[] { "cn", "uid", "samaccountname", "userprincipalname" };
-            var contextType = (LdapFilterChoice)attr.ContextType;
+            var contextType = (LdapFilterChoice?)attr.ContextType;
 
             if (contextType == LdapFilterChoice.equalityMatch)
             {

@@ -3,15 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Configuration.Core;
+using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Core.Logging;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;
 using Serilog;
 using Serilog.Core;
-using Serilog.Events;
-using Serilog.Formatting;
-using Serilog.Formatting.Compact;
 using System;
 using System.IO;
 using System.Net;
@@ -57,22 +55,21 @@ namespace MultiFactor.Ldap.Adapter
 
         private static void ConfigureServices(IServiceCollection services)
         {
-            //create logging
-            var loggingLevelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
-            services.AddSingleton<LoggerFactory>();
+            var loggingLevelSwitch = new LoggingLevelSwitch();
             services.AddSingleton<ClientLoggerProvider>();
+            services.AddSingleton(sp => {
+                Log.Logger = LoggerFactory.CreateLogger(ServiceConfiguration.GetLogFormat(), ServiceConfiguration.GetLogLevel());
+                return Log.Logger;
+            });
 
-            
             services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
             services.AddSingleton(sp => {
                 var configurationProvider = sp.GetRequiredService<IConfigurationProvider>();
                 var logger = sp.GetRequiredService<ILogger>();
-                var logFactory = sp.GetRequiredService<LoggerFactory>();
                 var serviceConf = new ServiceConfiguration(configurationProvider, logger);
-                //slogFactory.SetLogLevel(serviceConf.LogLevel, loggingLevelSwitch);
                 if (serviceConf.ServerConfig.AdapterLdapsEndpoint != null)
                 {
-                    GetOrCreateTlsCertificate(Core.Constants.ApplicationPath, serviceConf, Log.Logger);
+                    TlsCertificateFactory.EnsureTlsCertificatesExist(Core.Constants.ApplicationPath, serviceConf, Log.Logger);
                 }
                 return serviceConf;
             });
@@ -84,38 +81,6 @@ namespace MultiFactor.Ldap.Adapter
             services.AddMemoryCache();
             services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
             services.AddHostedService<ServerHost>();
-        }
-
-        private static void GetOrCreateTlsCertificate(string path, ServiceConfiguration configuration, Serilog.ILogger logger)
-        {
-            var certDirectory = $"{path}tls";
-            if (!Directory.Exists(certDirectory))
-            {
-                Directory.CreateDirectory(certDirectory);
-            }
-
-            var certPath = $"{certDirectory}{Path.DirectorySeparatorChar}certificate.pfx";
-            if (!File.Exists(certPath))
-            {
-                var subj = Dns.GetHostEntry("").HostName;
-
-                logger.Debug($"Generating self-signing certificate for TLS with subject CN={subj}");
-
-                var certService = new CertificateService();
-                var cert = certService.GenerateCertificate(subj);
-
-                var data = cert.Export(X509ContentType.Pfx);
-                File.WriteAllBytes(certPath, data);
-
-                logger.Information($"Self-signed certificate with subject CN={subj} saved to {certPath}");
-
-                configuration.X509Certificate = cert;
-            }
-            else
-            {
-                logger.Debug($"Loading certificate for TLS from {certPath}");
-                configuration.X509Certificate = new X509Certificate2(certPath);
-            }
         }
 
         private static string FlattenException(Exception exception)
