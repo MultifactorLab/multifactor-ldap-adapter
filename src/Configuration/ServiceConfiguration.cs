@@ -13,6 +13,8 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using MultiFactor.Ldap.Adapter.Core;
+using Microsoft.Extensions.DependencyInjection;
+using MultiFactor.Ldap.Adapter.Core.Logging;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -72,6 +74,10 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Logging level
         /// </summary>
         public string LogLevel { get; set; }
+        /// <summary>
+        /// Logging Format
+        /// </summary>
+        public string LogFormat { get; set; }
 
         /// <summary>
         /// Certificate for TLS
@@ -184,6 +190,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var activeDirectory2FaBypassGroupSetting            = appSettings.Settings["active-directory-2fa-bypass-group"]?.Value;
             var bypassSecondFactorWhenApiUnreachableSetting     = appSettings.Settings["bypass-second-factor-when-api-unreachable"]?.Value;
             var loadActiveDirectoryNestedGroupsSettings         = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
+            var logLevel                                        = appSettings.Settings["logging-level"]?.Value;
+            var logFormat                                       = appSettings.Settings["logging-format"]?.Value;
 
 
             if (string.IsNullOrEmpty(ldapServerSetting))
@@ -205,7 +213,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 LdapServer = ldapServerSetting,
                 MultifactorApiKey = multifactorApiKeySetting,
                 MultifactorApiSecret = multifactorApiSecretSetting,
-                LdapBaseDn = ldapBaseDnSetting,
+                LdapBaseDn = ldapBaseDnSetting 
             };
 
             if (!string.IsNullOrEmpty(serviceAccountsSetting))
@@ -259,6 +267,16 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 configuration.LoadActiveDirectoryNestedGroups = loadActiveDirectoryNestedGroups;
             }
 
+            if(!string.IsNullOrEmpty(logLevel))
+            {
+                configuration.LogLevel = logLevel;
+            }
+
+            if(!string.IsNullOrEmpty(logFormat))
+            {
+                configuration.LogFormat = logFormat;
+            }
+
             if(userNameTransformRulesSection != null)
             {
                 configuration.UserNameTransformRules.Load(userNameTransformRulesSection);
@@ -281,6 +299,12 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         {
             var appSettings = ConfigurationManager.AppSettings;
             return appSettings?["logging-format"];
+        }
+
+        public static string GetLogLevel()
+        {
+            var appSettings = ConfigurationManager.AppSettings;
+            return appSettings?["logging-level"];
         }
     }
 }

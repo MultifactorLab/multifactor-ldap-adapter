@@ -70,6 +70,14 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public string[] ActiveDirectory2FaBypassGroup { get; set; }
 
         public bool LoadActiveDirectoryNestedGroups { get; set; }
+        /// <summary>
+        /// Client Log Level
+        /// </summary>
+        public string LogLevel  { get; set; }
+        /// <summary>
+        /// Log Format
+        /// </summary>
+        public string LogFormat { get; set; }
 
         /// <summary>
         /// Username transfor rules
