@@ -13,10 +13,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
-using System.Collections.Generic;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {

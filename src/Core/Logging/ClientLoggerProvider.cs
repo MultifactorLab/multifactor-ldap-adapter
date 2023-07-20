@@ -1,6 +1,5 @@
 ﻿using MultiFactor.Ldap.Adapter.Configuration;
 using ILogger = Serilog.ILogger;
-using System.Collections.Generic;
 using Serilog;
 using System.Collections.Concurrent;
 

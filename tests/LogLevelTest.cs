@@ -5,6 +5,7 @@ using MultiFactor.Ldap.Adapter.Core.Logging;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
 using Serilog;
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Xunit;
@@ -87,18 +88,23 @@ namespace MultiFactor.Ldap.Adapter.Tests
 
             var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
             var provider = new ClientLoggerProvider();
-            ILogger logger1, logger2;
-            Action createMethod = () => provider.GetLogger(client);
-            int arraySize = 20;
-            var bigArray = new Action[arraySize];
-            Array.Fill(bigArray, createMethod);
+            int arraySize = 200;
+            var bigArray = new ILogger[arraySize];
+            Array.Fill(bigArray, null);
 
-            Parallel.Invoke(
-                bigArray
+            Parallel.For(
+                0, arraySize,
+                new ParallelOptions()
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                },
+                (x) => bigArray[x] = provider.GetLogger(client)
             );
-            logger1 = provider.GetLogger(client);
-            logger2 = provider.GetLogger(client);
-            Assert.True(logger1 == logger2);
+
+            for (int i = 0; i < arraySize - 1; i++)
+            {
+                Assert.True(bigArray[i] == bigArray[i + 1]);
+            }
              
         }
     }
