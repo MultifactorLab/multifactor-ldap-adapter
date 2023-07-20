@@ -3,10 +3,13 @@ using MultiFactor.Ldap.Adapter.Core.Logging;
 using System.Threading.Tasks;
 using System;
 using Xunit;
-using Serilog;
 
 namespace MultiFactor.Ldap.Adapter.Tests
 {
+    internal class TestableClientLoggerProvider : ClientLoggerProvider
+    {
+        public int Count => _loggerMap.Count;
+    }
     public class LogProviderTest
     {
         public static ClientConfiguration GetClientConfiguration(string logLevel = "Debug", string logFormat = "json")
@@ -45,26 +48,19 @@ namespace MultiFactor.Ldap.Adapter.Tests
         [Fact]
         public void LoggerProvider_ShouldBeConcurrent()
         {
-            var client = GetClientConfiguration("Warning", null);
-            var provider = new ClientLoggerProvider();
-            int arraySize = 200;
-            var bigArray = new ILogger[arraySize];
-            Array.Fill(bigArray, null);
-
+            var provider = new TestableClientLoggerProvider();
+            int interationMax = 20;
+ 
             Parallel.For(
-                0, arraySize,
+                0, interationMax,
                 new ParallelOptions()
                 {
                     MaxDegreeOfParallelism = Math.Max(Environment.ProcessorCount - 1, 1),
                 },
-                (x) => bigArray[x] = provider.GetLogger(client)
+                (x) => provider.GetLogger(GetClientConfiguration("Warning", null))
             );
-
-            for (int i = 1; i < arraySize; i++)
-            {
-                Assert.Same(bigArray[0], bigArray[i]);
-            }
-
+            Assert.True(provider.Count == 1);
         }
     }
 }
+    

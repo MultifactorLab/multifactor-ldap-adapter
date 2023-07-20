@@ -7,7 +7,7 @@ namespace MultiFactor.Ldap.Adapter.Core.Logging
 {
     public class ClientLoggerProvider
     {
-        private ConcurrentDictionary<string, ILogger> _loggerMap = new ConcurrentDictionary<string, ILogger>();
+        protected ConcurrentDictionary<string, ILogger> _loggerMap = new ConcurrentDictionary<string, ILogger>();
 
         public ILogger GetLogger(ClientConfiguration configuration)
         {
