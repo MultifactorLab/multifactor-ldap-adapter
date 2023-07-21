@@ -15,6 +15,7 @@ using System.Security.Cryptography.X509Certificates;
 using MultiFactor.Ldap.Adapter.Core;
 using Microsoft.Extensions.DependencyInjection;
 using MultiFactor.Ldap.Adapter.Core.Logging;
+using static MultiFactor.Ldap.Adapter.Core.Constants;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -83,6 +84,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Certificate for TLS
         /// </summary>
         public X509Certificate2 X509Certificate { get; set; }
+        
+        /// <summary>
+        /// Certificate Password
+        /// </summary>
+        public string CertificatePassword { get; set; }
 
         public bool SingleClientMode { get; set; }
         public RandomWaiterConfig InvalidCredentialDelay { get; private set; }
@@ -102,6 +108,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var apiUrlSetting                   = appSettings.Settings["multifactor-api-url"]?.Value;
             var apiProxySetting                 = appSettings.Settings["multifactor-api-proxy"]?.Value;
             var logLevelSetting                 = appSettings.Settings["logging-level"]?.Value;
+            var certificatePassword = appSettings.Settings["certificate-password"]?.Value;
+
 
             if (string.IsNullOrEmpty(apiUrlSetting))
             {
@@ -123,6 +131,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             }
             
             ServerConfig = ldapServerConfig;
+
+            if (!string.IsNullOrEmpty(certificatePassword))
+            {
+                CertificatePassword = certificatePassword;
+            }
 
             try
             {
