@@ -15,6 +15,8 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
+using NetTools;
+using System.Collections.Generic;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -73,18 +75,36 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, Task<(byte[], int)>> process)
         {
+            var readBuffer = new byte[32192];
             try
             {
-                var bytesRead = 0;
-                var requestData = new byte[8192];   //enough for bind request/result
-
+                int bytesRead;
                 do
                 {
-                    //read
-                    bytesRead = await sourceStream.ReadAsync(requestData, 0, requestData.Length);
-
+                    int totalRead = 0;
+                    //read packet ber tag
+                    bytesRead = await sourceStream.ReadAsync(readBuffer, 0, 2);
+                    if (bytesRead < 2)
+                    {
+                        continue;
+                    }
+                    //  handle multi-octate BER LEN!!
+                    if (readBuffer[1] >> 7 == 1)
+                    {
+                        totalRead += bytesRead;
+                        bytesRead = await sourceStream.ReadAsync(readBuffer, totalRead, readBuffer[1] & 127);
+                    }
+                    var berLen = await Utils.BerLengthToInt(readBuffer, 1);
+                    totalRead += bytesRead;
+                    int berLenWithHeading = berLen.Length + berLen.BerByteCount + 1;
+                    // read packet until end
+                    while (totalRead < berLenWithHeading)
+                    {
+                        bytesRead = await sourceStream.ReadAsync(readBuffer, totalRead, berLen.Length);
+                        totalRead += bytesRead;
+                    }
                     //process
-                    var response = await process(requestData, bytesRead);
+                    var response = await process(readBuffer.ToArray(), totalRead);
 
                     //write
                     await targetStream.WriteAsync(response.Item1, 0, response.Item2);
@@ -93,7 +113,6 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         source.Close();
                     }
-
                 } while (bytesRead != 0);
             }
             catch (IOException)
@@ -107,7 +126,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
         }
 
-        private async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
+        public async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
         {
             var request = await LdapRequest.FromBytesAsync(data);
 
@@ -121,7 +140,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     _status = LdapProxyAuthenticationStatus.UserDnSearch;
                     _lookupUserName = user;
                 }
-            }
+            } 
 
             if (request.RequestType == LdapRequestType.BindRequest)
             {
