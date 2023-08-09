@@ -126,7 +126,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
         }
 
-        public async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
+        private async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
         {
             var request = await LdapRequest.FromBytesAsync(data);
 
