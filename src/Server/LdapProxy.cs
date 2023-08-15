@@ -15,8 +15,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
-using NetTools;
-using System.Collections.Generic;
+using MultiFactor.Ldap.Adapter.Server.LdapStream;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -75,37 +74,27 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, Task<(byte[], int)>> process)
         {
-            var readBuffer = new byte[32192];
             try
             {
-                int bytesRead;
+                var streamReader = new LdapStreamReader(sourceStream);
+                LdapPacketBuffer ldapPacket;
                 do
                 {
-                    int totalRead = 0;
-                    //read packet ber tag
-                    bytesRead = await sourceStream.ReadAsync(readBuffer, 0, 2);
-                    if (bytesRead < 2)
+                    //read packet
+                    ldapPacket = await streamReader.ReadLdapPacket();
+                    if (ldapPacket.Data.Length == 0)
                     {
+                        break;
+                    }
+                    if (!ldapPacket.PacketValid)
+                    {
+                        // bypass data
+                        await targetStream.WriteAsync(ldapPacket.Data, 0, ldapPacket.Data.Length);
                         continue;
                     }
-                    //  handle multi-octate BER LEN!!
-                    if (readBuffer[1] >> 7 == 1)
-                    {
-                        totalRead += bytesRead;
-                        bytesRead = await sourceStream.ReadAsync(readBuffer, totalRead, readBuffer[1] & 127);
-                    }
-                    var berLen = await Utils.BerLengthToInt(readBuffer, 1);
-                    totalRead += bytesRead;
-                    int berLenWithHeading = berLen.Length + berLen.BerByteCount + 1;
-                    // read packet until end
-                    while (totalRead < berLenWithHeading)
-                    {
-                        bytesRead = await sourceStream.ReadAsync(readBuffer, totalRead, berLen.Length);
-                        totalRead += bytesRead;
-                    }
+                   
                     //process
-                    var response = await process(readBuffer.ToArray(), totalRead);
-
+                    var response = await process(ldapPacket.Data, ldapPacket.Data.Length);
                     //write
                     await targetStream.WriteAsync(response.Item1, 0, response.Item2);
 
@@ -113,7 +102,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         source.Close();
                     }
-                } while (bytesRead != 0);
+                } while (ldapPacket.Data.Length > 0);
             }
             catch (IOException)
             {

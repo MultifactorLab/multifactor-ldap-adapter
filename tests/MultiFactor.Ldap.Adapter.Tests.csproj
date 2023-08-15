@@ -113,4 +113,10 @@
     <ProjectReference Include="..\src\MultiFactor.Ldap.Adapter.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Assets\ldap-packet-dump.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
