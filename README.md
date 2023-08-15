@@ -213,6 +213,8 @@ The component's parameters are stored in ```/opt/multifactor/ldap/multifactor-ld
 
 <!-- Logging level: 'Debug', 'Info', 'Warn', 'Error' -->
 <add key="logging-level" value="Debug"/>
+<!--certificate password leave empty or null for certificate without password-->
+<!--<add key="certificate-password" value="XXXXXX"/>-->
 ```
 
 ## Start-Up
