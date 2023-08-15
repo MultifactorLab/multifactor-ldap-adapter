@@ -256,6 +256,8 @@ $ sudo systemctl enable multifactor-ldap
 
 <!-- Уровень логирования: 'Debug', 'Info', 'Warn', 'Error' -->
 <add key="logging-level" value="Debug"/>
+<!--certificate password leave empty or null for certificate without password-->
+<!--<add key="certificate-password" value="XXXXXX"/>-->
 ```
 
 ## Запуск компонента
