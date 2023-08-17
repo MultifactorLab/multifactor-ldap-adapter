@@ -1,6 +1,5 @@
 ﻿using MultiFactor.Ldap.Adapter.Core;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -8,12 +7,16 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
 {
     public class LdapStreamReader 
     {
+        private const int DEFAULT_BUFFER_SIZE = 32768;
+
         private byte[] _readBuffer;
         private Stream _inputStream;
-        public LdapStreamReader(Stream inputStream, int bufferSize = 32768)
+        public LdapStreamReader(Stream inputStream) : this(inputStream, DEFAULT_BUFFER_SIZE)
+        { }
+        public LdapStreamReader(Stream inputStream, int bufferSize)
         {
-            _inputStream = inputStream;
             _readBuffer = new byte[bufferSize];
+            _inputStream = inputStream;
         }
 
         private LdapPacketBuffer GetResultPacket(byte[] buffer, int totalRead, bool packetValid)
