@@ -114,6 +114,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Assets\ldap-packet-dump-big.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\ldap-packet-dump.bin">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

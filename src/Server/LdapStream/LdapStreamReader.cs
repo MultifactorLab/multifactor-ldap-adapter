@@ -1,6 +1,6 @@
 ﻿using MultiFactor.Ldap.Adapter.Core;
-using MultiFactor.Ldap.Adapter.Server.LdapStream;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -8,21 +8,22 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
 {
     public class LdapStreamReader 
     {
-        private byte[] _readBuffer = new byte[32192];
+        private byte[] _readBuffer;
         private Stream _inputStream;
-        public LdapStreamReader(Stream inputStream)
+        public LdapStreamReader(Stream inputStream, int bufferSize = 32768)
         {
             _inputStream = inputStream;
+            _readBuffer = new byte[bufferSize];
         }
 
-        private LdapPacketBuffer GetResultPacket(int totalRead, bool packetValid)
+        private LdapPacketBuffer GetResultPacket(byte[] buffer, int totalRead, bool packetValid)
         {
             var result = new LdapPacketBuffer()
             {
                 Data = new byte[totalRead],
                 PacketValid = packetValid
             };
-            Array.Copy(_readBuffer, result.Data, totalRead);
+            Array.Copy(buffer, result.Data, totalRead);
             return result;
         }
 
@@ -31,7 +32,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
             int totalRead = await _inputStream.ReadAsync(_readBuffer, 0, 2);
             if (totalRead < 2)
             {
-                return GetResultPacket(totalRead, false);
+                return GetResultPacket(_readBuffer, totalRead, false);
             }
             //  handle multi-octate BER LEN!!
             if (_readBuffer[1] >> 7 == 1)
@@ -40,6 +41,16 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
             }
             var berLen = await Utils.BerLengthToInt(_readBuffer, 1);
             int berLenWithHeading = berLen.Length + berLen.BerByteCount + 1;
+            if(berLenWithHeading > 512 * Constants.BYTES_IN_MB)
+            {
+                return GetResultPacket(_readBuffer, totalRead, false);
+            }
+            if(berLenWithHeading >= _readBuffer.Length)
+            {
+                var newBuffer = new byte[berLenWithHeading];
+                Array.Copy(_readBuffer, newBuffer, totalRead);
+                _readBuffer = newBuffer;
+            }
             // read packet until end
             int attempts = 0;
             while (totalRead < berLenWithHeading)
@@ -50,7 +61,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
                     attempts++;
                     if (attempts > 3)
                     {
-                        return GetResultPacket(totalRead, false);
+                        return GetResultPacket(_readBuffer, totalRead, false);
                     }
 
                     await Task.Delay(500);
@@ -59,7 +70,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
                 totalRead += bytesReaded;
                 attempts = 0;
             }
-            return GetResultPacket(totalRead, true);
+            return GetResultPacket(_readBuffer, totalRead, true);
         }
     }
 }
