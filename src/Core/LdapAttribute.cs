@@ -24,6 +24,7 @@
 //SOFTWARE.
 
 
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -257,7 +258,10 @@ namespace MultiFactor.Ldap.Adapter.Core
                     {
                         attribute.ChildAttributes = await ParseAttributes(bytes, currentPosition, currentPosition + berLen.Length);
                     }
-                    catch { }
+                    catch(Exception ex)
+                    {
+                        Log.Logger.Error(ex, "An error has occured during an attribute parsing");
+                    }
                 }
                 else
                 {
