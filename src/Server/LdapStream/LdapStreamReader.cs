@@ -44,7 +44,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
             }
             var berLen = await Utils.BerLengthToInt(_readBuffer, 1);
             int berLenWithHeading = berLen.Length + berLen.BerByteCount + 1;
-            if(berLenWithHeading > 512 * Constants.BYTES_IN_MB)
+            if(berLenWithHeading > 64 * Constants.BYTES_IN_MB)
             {
                 return GetResultPacket(_readBuffer, totalRead, false);
             }
@@ -58,7 +58,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
             int attempts = 0;
             while (totalRead < berLenWithHeading)
             {
-                var bytesReaded = await _inputStream.ReadAsync(_readBuffer, totalRead, berLen.Length);
+                var bytesReaded = await _inputStream.ReadAsync(_readBuffer, totalRead, berLenWithHeading - totalRead);
                 if (bytesReaded == 0)
                 {
                     attempts++;
