@@ -5,6 +5,7 @@ namespace MultiFactor.Ldap.Adapter.Core
 {
     public static class Constants
     {
+        public const int BYTES_IN_MB = 1024 * 1024;
         public static readonly string ApplicationPath = $"{Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)}{Path.DirectorySeparatorChar}";
 
         public static class Configuration

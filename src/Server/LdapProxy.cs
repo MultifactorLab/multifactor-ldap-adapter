@@ -15,6 +15,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
+using MultiFactor.Ldap.Adapter.Server.LdapStream;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -75,17 +76,25 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             try
             {
-                var bytesRead = 0;
-                var requestData = new byte[8192];   //enough for bind request/result
-
+                var streamReader = new LdapStreamReader(sourceStream);
+                LdapPacketBuffer ldapPacket;
                 do
                 {
-                    //read
-                    bytesRead = await sourceStream.ReadAsync(requestData, 0, requestData.Length);
-
+                    //read packet
+                    ldapPacket = await streamReader.ReadLdapPacket();
+                    if (ldapPacket.Data.Length == 0)
+                    {
+                        break;
+                    }
+                    if (!ldapPacket.PacketValid)
+                    {
+                        // bypass data
+                        await targetStream.WriteAsync(ldapPacket.Data, 0, ldapPacket.Data.Length);
+                        continue;
+                    }
+                   
                     //process
-                    var response = await process(requestData, bytesRead);
-
+                    var response = await process(ldapPacket.Data, ldapPacket.Data.Length);
                     //write
                     await targetStream.WriteAsync(response.Item1, 0, response.Item2);
 
@@ -93,8 +102,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     {
                         source.Close();
                     }
-
-                } while (bytesRead != 0);
+                } while (ldapPacket.Data.Length > 0);
             }
             catch (IOException)
             {
@@ -121,7 +129,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     _status = LdapProxyAuthenticationStatus.UserDnSearch;
                     _lookupUserName = user;
                 }
-            }
+            } 
 
             if (request.RequestType == LdapRequestType.BindRequest)
             {
