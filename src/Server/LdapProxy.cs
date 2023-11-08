@@ -202,22 +202,17 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName);
-
-                        if (_clientConfig.CheckUserGroups())
+                        var profileLoaded = profile != null;
+                        if (!profileLoaded)
                         {
-                            var profileLoaded = profile != null;
-
-                            if (!profileLoaded)
-                            {
-                                _logger.Error("User '{user:l}' not found. Can not check groups membership", _userName);
-                            }
-                            else
-                            {
-                                profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
-                            }
+                            _logger.Error("User '{user:l}' not found. Can not check groups membership", _userName);
+                        }
+                        if (profileLoaded && _clientConfig.CheckUserGroups())
+                        {
+                            profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
 
                             //check ACL
-                            if (profileLoaded && _clientConfig.ActiveDirectoryGroup.Any())
+                            if (_clientConfig.ActiveDirectoryGroup.Any())
                             {
                                 var accessGroup = _clientConfig.ActiveDirectoryGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (accessGroup != null)
@@ -241,7 +236,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             }
 
                             //check if mfa is mandatory
-                            if (profileLoaded && _clientConfig.ActiveDirectory2FaGroup.Any())
+                            if (_clientConfig.ActiveDirectory2FaGroup.Any())
                             {
                                 var mfaGroup = _clientConfig.ActiveDirectory2FaGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (mfaGroup != null)
@@ -256,7 +251,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             }
 
                             //check of mfa is not mandatory
-                            if (profileLoaded && _clientConfig.ActiveDirectory2FaBypassGroup.Any() && !bypass)
+                            if (_clientConfig.ActiveDirectory2FaBypassGroup.Any() && !bypass)
                             {
                                 var bypassGroup = _clientConfig.ActiveDirectory2FaBypassGroup.FirstOrDefault(group => IsMemberOf(profile, group));
                                 if (bypassGroup != null)
@@ -271,7 +266,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             }
                         }
 
-                        if (!bypass)
+                        if (profileLoaded && !bypass)
                         {
                             if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
                             {
