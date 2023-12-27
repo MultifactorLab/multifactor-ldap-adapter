@@ -11,9 +11,6 @@ using MultiFactor.Ldap.Adapter.Services.Caching;
 using Serilog;
 using Serilog.Core;
 using System;
-using System.IO;
-using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace MultiFactor.Ldap.Adapter
@@ -45,10 +42,7 @@ namespace MultiFactor.Ldap.Adapter
                     Console.WriteLine($"Unable to start: {errorMessage}");
                 }
 
-                if (host != null)
-                {
-                    host.StopAsync();
-                }
+                host?.StopAsync();
             }
 
         }
@@ -75,6 +69,7 @@ namespace MultiFactor.Ldap.Adapter
             });
             services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
             services.AddSingleton<MultiFactorApiClient>();
+            services.AddHttpClientWithProxy();
             services.AddSingleton<LdapProxyFactory>();
             services.AddSingleton<LdapServersFactory>();
             services.AddSingleton<AuthenticatedClientCache>();

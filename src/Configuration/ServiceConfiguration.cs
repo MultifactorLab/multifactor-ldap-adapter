@@ -3,6 +3,7 @@
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 using MultiFactor.Ldap.Adapter.Configuration.Core;
+using MultiFactor.Ldap.Adapter.Core;
 using NetTools;
 using Serilog;
 using System;
@@ -12,10 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
-using MultiFactor.Ldap.Adapter.Core;
-using Microsoft.Extensions.DependencyInjection;
-using MultiFactor.Ldap.Adapter.Core.Logging;
-using static MultiFactor.Ldap.Adapter.Core.Constants;
+using System.Threading;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -27,9 +25,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// <summary>
         /// List of clients with identification by client ip
         /// </summary>
-        private IDictionary<IPAddress, ClientConfiguration> _ipClients;
-        private ILogger _logger;
-        private IConfigurationProvider _configurationProvider;
+        private readonly IDictionary<IPAddress, ClientConfiguration> _ipClients;
+        private readonly ILogger _logger;
+        private readonly IConfigurationProvider _configurationProvider;
         public ServiceConfiguration(IConfigurationProvider configurationProvider, ILogger logger)
         {
             _ipClients = new Dictionary<IPAddress, ClientConfiguration>();
@@ -66,15 +64,22 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Multifactor API URL
         /// </summary>
         public string ApiUrl { get; set; }
+
         /// <summary>
         /// HTTP Proxy for API
         /// </summary>
         public string ApiProxy { get; set; }
 
         /// <summary>
+        /// HTTP Timeout for Multifactor requests
+        /// </summary>
+        public TimeSpan ApiTimeout { get; set; }
+
+        /// <summary>
         /// Logging level
         /// </summary>
         public string LogLevel { get; set; }
+
         /// <summary>
         /// Logging Format
         /// </summary>
@@ -91,9 +96,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public string CertificatePassword { get; set; }
 
         public bool SingleClientMode { get; set; }
+
         public RandomWaiterConfig InvalidCredentialDelay { get; private set; }
-
-
 
         /// <summary>
         /// Read and load settings from appSettings configuration section
@@ -107,6 +111,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
             var apiUrlSetting                   = appSettings.Settings["multifactor-api-url"]?.Value;
             var apiProxySetting                 = appSettings.Settings["multifactor-api-proxy"]?.Value;
+            var apiTimeoutSetting               = appSettings.Settings["multifactor-api-timeout"]?.Value;
             var logLevelSetting                 = appSettings.Settings["logging-level"]?.Value;
             var certificatePassword = appSettings.Settings["certificate-password"]?.Value;
 
@@ -115,12 +120,14 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             {
                 throw new Exception("Configuration error: 'multifactor-api-url' element not found");
             }
+            TimeSpan apiTimeout = ParseHttpTimeout(apiTimeoutSetting);
             if (string.IsNullOrEmpty(logLevelSetting))
             {
                 throw new Exception("Configuration error: 'logging-level' element not found");
             }
 
             ApiUrl = apiUrlSetting;
+            ApiTimeout = apiTimeout;
             ApiProxy = apiProxySetting;
             LogLevel = logLevelSetting;
 
@@ -318,6 +325,20 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         {
             var appSettings = ConfigurationManager.AppSettings;
             return appSettings?["logging-level"];
+        }
+
+        private static TimeSpan ParseHttpTimeout(string mfTimeoutSetting)
+        {
+            TimeSpan _minimalApiTimeout = TimeSpan.FromSeconds(65);
+
+            if (!TimeSpan.TryParseExact(mfTimeoutSetting, @"hh\:mm\:ss", null, System.Globalization.TimeSpanStyles.None, out var httpRequestTimeout))
+                return _minimalApiTimeout;
+
+            return httpRequestTimeout == TimeSpan.Zero ?
+                Timeout.InfiniteTimeSpan // infinity timeout
+                : httpRequestTimeout < _minimalApiTimeout
+                    ? _minimalApiTimeout  // minimal timeout
+                    : httpRequestTimeout; // timeout from config
         }
     }
 }

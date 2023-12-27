@@ -4,11 +4,12 @@
 
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Services.Caching;
-using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Services
@@ -35,15 +36,22 @@ namespace MultiFactor.Ldap.Adapter.Services
     /// </summary>
     public class MultiFactorApiClient
     {
-        private ServiceConfiguration _configuration;
+        private readonly ServiceConfiguration _configuration;
         private readonly AuthenticatedClientCache _clientCache;
-        private ILogger _logger;
+        private readonly IHttpClientFactory _httpClientFactory;
+        readonly JsonSerializerOptions _serialazerOptions;
+        private readonly ILogger _logger;
 
-        public MultiFactorApiClient(ServiceConfiguration configuration, AuthenticatedClientCache clientCache, ILogger logger)
+        public MultiFactorApiClient(ServiceConfiguration configuration, AuthenticatedClientCache clientCache, IHttpClientFactory httpClientFactory, ILogger logger)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _clientCache = clientCache ?? throw new ArgumentNullException(nameof(clientCache));
+            _httpClientFactory = httpClientFactory;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _serialazerOptions = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
         }
 
         public async Task<bool> Authenticate(ConnectedClientInfo connectedClient)
@@ -94,42 +102,44 @@ namespace MultiFactor.Ldap.Adapter.Services
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 ServicePointManager.DefaultConnectionLimit = 100;
 
-                var json = JsonConvert.SerializeObject(payload);
+                var json = JsonSerializer.Serialize(payload, _serialazerOptions);
 
                 _logger.Debug($"Sending request to API: {json}");
 
-                var requestData = Encoding.UTF8.GetBytes(json);
-                byte[] responseData = null;
-
                 //basic authorization
                 var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
+                var httpClient = _httpClientFactory.CreateClient(nameof(MultiFactorApiClient));
 
-                using (var web = new WebClient())
+                StringContent jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
+                HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, url)
                 {
-                    web.Headers.Add("Content-Type", "application/json");
-                    web.Headers.Add("Authorization", "Basic " + auth);
+                    Content = jsonContent
+                };
+                message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
+                var res = await httpClient.SendAsync(message);
+                var jsonResponse = await res.Content.ReadAsStringAsync();
+                var response = JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse, _serialazerOptions);
 
-                    if (!string.IsNullOrEmpty(_configuration.ApiProxy))
-                    {
-                        _logger.Debug("Using proxy " + _configuration.ApiProxy);
-                        web.Proxy = new WebProxy(_configuration.ApiProxy);
-                    }
-
-                    responseData = await web.UploadDataTaskAsync(url, "POST", requestData);
-                }
-
-                json = Encoding.UTF8.GetString(responseData);
-
-                _logger.Debug($"Received response from API: {json}");
-
-                var response = JsonConvert.DeserializeObject<MultiFactorApiResponse<MultiFactorAccessRequest>>(json);
+                _logger.Debug("Received response from API: {@response}", response);
 
                 if (!response.Success)
                 {
-                    _logger.Warning($"Got unsuccessful response from API: {json}");
+                    _logger.Warning("Got unsuccessful response from API: {@response}", response);
                 }
 
                 return response.Model;
+            }
+            catch (TaskCanceledException tce)
+            {
+                _logger.Error(tce, $"Multifactor API host unreachable {url}: timeout");
+
+                if (clientConfig.BypassSecondFactorWhenApiUnreachable)
+                {
+                    _logger.Warning("Bypass second factor");
+                    return MultiFactorAccessRequest.Bypass;
+                }
+
+                return null;
             }
             catch (Exception ex)
             {
