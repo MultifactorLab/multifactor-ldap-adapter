@@ -1,4 +1,4 @@
-﻿//Copyright(c) 2021 MultiFactor
+//Copyright(c) 2021 MultiFactor
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
@@ -13,6 +13,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using MultiFactor.Ldap.Adapter.Core;
+using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using System.Threading;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
@@ -212,7 +214,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var loadActiveDirectoryNestedGroupsSettings         = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
             var logLevel                                        = appSettings.Settings["logging-level"]?.Value;
             var logFormat                                       = appSettings.Settings["logging-format"]?.Value;
-
+            var enforcedLoginFormatString                       = appSettings.Settings["enforce-login-format"]?.Value;
 
             if (string.IsNullOrEmpty(ldapServerSetting))
             {
@@ -227,13 +229,20 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 throw new Exception("Configuration error: 'multifactor-shared-secret' element not found");
             }
 
+            NameType? enforcedLoginFormat = null;
+            if (Enum.TryParse<NameType>(enforcedLoginFormatString, true, out var parsedLoginFormat))
+            {
+                enforcedLoginFormat = parsedLoginFormat;
+            }
+            
             var configuration = new ClientConfiguration
             {
                 Name = name,
                 LdapServer = ldapServerSetting,
                 MultifactorApiKey = multifactorApiKeySetting,
                 MultifactorApiSecret = multifactorApiSecretSetting,
-                LdapBaseDn = ldapBaseDnSetting 
+                LdapBaseDn = ldapBaseDnSetting,
+                EnforcedLoginFormat = enforcedLoginFormat
             };
 
             if (!string.IsNullOrEmpty(serviceAccountsSetting))

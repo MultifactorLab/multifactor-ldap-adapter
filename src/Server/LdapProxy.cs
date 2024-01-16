@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.LdapStream;
+using MultiFactor.Ldap.Adapter.Core.NameResolve;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -31,7 +32,7 @@ namespace MultiFactor.Ldap.Adapter.Server
         private string _userName;
         private string _lookupUserName;
         private string _transformedUserName;
-
+        private NameResolverService _nameResolverService;
         private LdapService _ldapService;
 
         private LdapProxyAuthenticationStatus _status;
@@ -56,6 +57,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             _ldapService = new LdapService(clientConfig);
+            _nameResolverService = new NameResolverService();
         }
 
         public async Task Start()
@@ -68,9 +70,10 @@ namespace MultiFactor.Ldap.Adapter.Server
             await Task.WhenAny(
                 DataExchange(_clientConnection, _clientStream, _serverConnection, _serverStream, ParseAndProcessRequest),
                 DataExchange(_serverConnection, _serverStream, _clientConnection, _clientStream, ParseAndProcessResponse));
-
+                
             _logger.Debug("Closed {client} => {server} client {clientName:l}", from, to, _clientConfig.Name);
         }
+ 
 
         private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, Task<(byte[], int)>> process)
         {
@@ -201,12 +204,20 @@ namespace MultiFactor.Ldap.Adapter.Server
                             _userName = UserNameTransformer.ProcessUserNameTransformRules(_userName, _clientConfig.UserNameTransformRules.BeforeSecondFactor, _logger);
                         }
 
-                        var profile = await _ldapService.LoadProfile(_serverStream, _userName);
+                        var baseDn = await _ldapService.GetBaseDn(_serverStream, _userName);
+
+                        if(_clientConfig.EnforcedLoginFormat != null)
+                        {
+                            _userName = await EnforceLoginFormat(baseDn, _clientConfig.EnforcedLoginFormat.Value);
+                        }
+
+                        var profile = await _ldapService.LoadProfile(_serverStream, _userName, baseDn);
                         var profileLoaded = profile != null;
                         if (!profileLoaded)
                         {
                             _logger.Error("User '{user:l}' not found. Can not check groups membership", _userName);
                         }
+
                         if (profileLoaded && _clientConfig.CheckUserGroups())
                         {
                             profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
@@ -352,6 +363,19 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
 
             return dn;
+        }
+
+        private async Task<string> EnforceLoginFormat(string baseDn, NameType loginFormat)
+        {
+            var domains = await _ldapService.GetDomains(_serverStream, baseDn);
+            var matchedProfile = await _ldapService.GetNames(_serverStream, _userName, baseDn);
+            _nameResolverService
+                .CreateContext()
+                .SetDomains(domains)
+                .SetBaseDn(baseDn)
+                .SetMatchedProfile(matchedProfile);
+
+            return _nameResolverService.Resolve(_userName, loginFormat);
         }
 
         private string SearchUserName(LdapAttribute attr)
