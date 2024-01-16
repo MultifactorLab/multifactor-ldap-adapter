@@ -180,7 +180,7 @@ namespace MultiFactor.Ldap.Adapter.Services
         }
 
 
-        public LdapPacket BuildGetNames(string name, string baseDn)
+        public LdapPacket BuildResolveProfileRequest(string name, string baseDn)
         {
             var packet = new LdapPacket(_messageId++);
 
@@ -197,7 +197,7 @@ namespace MultiFactor.Ldap.Adapter.Services
 
             var sAMAccountNameEq = new LdapAttribute((byte)LdapFilterChoice.equalityMatch);
             sAMAccountNameEq.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "sAMAccountName"));
-            var sAMAccountNameRegex = new Regex("@[^.]+$");
+            var sAMAccountNameRegex = new Regex("@[^@]+$");
             var netbiosRegex = new Regex(@"[^.]+\\");
             sAMAccountNameEq.ChildAttributes.Add(
                 new LdapAttribute(UniversalDataType.OctetString,
@@ -416,9 +416,9 @@ namespace MultiFactor.Ldap.Adapter.Services
             return result.ToArray();
         }
 
-        public async Task<LdapProfile> GetNames(Stream serverStream, string name, string baseDn)
+        public async Task<LdapProfile> ResolveProfile(Stream serverStream, string name, string baseDn)
         {
-            var request = BuildGetNames(name, baseDn);
+            var request = BuildResolveProfileRequest(name, baseDn);
             await serverStream.WriteAsync(request.GetBytes());
             var result = new List<NetbiosDomainName>();
 
@@ -449,17 +449,8 @@ namespace MultiFactor.Ldap.Adapter.Services
                             case "sAMAccountName":
                                 profile.Uid = entry.Values.FirstOrDefault();    //ad
                                 break;
-                            case "displayName":
-                                profile.DisplayName = entry.Values.FirstOrDefault();
-                                break;
                             case "userPrincipalName":
                                 profile.Upn = entry.Values.FirstOrDefault();
-                                break;
-                            case "mail":
-                                profile.Email = entry.Values.FirstOrDefault();
-                                break;
-                            case "memberOf":
-                                profile.MemberOf.AddRange(entry.Values.Select(v => DnToCn(v)));
                                 break;
                         }
                     }

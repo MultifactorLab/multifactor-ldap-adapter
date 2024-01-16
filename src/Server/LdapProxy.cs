@@ -368,7 +368,7 @@ namespace MultiFactor.Ldap.Adapter.Server
         private async Task<string> EnforceLoginFormat(string baseDn, NameType loginFormat)
         {
             var domains = await _ldapService.GetDomains(_serverStream, baseDn);
-            var matchedProfile = await _ldapService.GetNames(_serverStream, _userName, baseDn);
+            var matchedProfile = await _ldapService.ResolveProfile(_serverStream, _userName, baseDn);
             _nameResolverService
                 .CreateContext()
                 .SetDomains(domains)

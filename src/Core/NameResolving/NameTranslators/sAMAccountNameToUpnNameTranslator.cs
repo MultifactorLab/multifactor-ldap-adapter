@@ -2,7 +2,7 @@
 
 namespace MultiFactor.Ldap.Adapter.Core.NameResolving.NameTranslators
 {
-    public class UidAndNetbiosToUpnNameTranslator : INameTranslator
+    public class sAMAccountNameAndNetbiosToUpnNameTranslator : INameTranslator
     {
         public string Translate(string from, NameResolverContext nameTranslatorContext)
         {
