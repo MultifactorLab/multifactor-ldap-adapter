@@ -4,7 +4,7 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolving.NameTranslators
 {
     public class sAMAccountNameAndNetbiosToUpnNameTranslator : INameTranslator
     {
-        public string Translate(string from, NameResolverContext nameTranslatorContext)
+        public string Translate(NameResolverContext nameTranslatorContext, string from)
         {
             if (nameTranslatorContext.Profile != null)
             {

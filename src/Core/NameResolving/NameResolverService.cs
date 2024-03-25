@@ -5,11 +5,7 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
 {
     public class NameResolverService
     {
-        private NameResolverContext _context;
-
-        public NameResolverService() { }
-
-        public string Resolve(string name, NameType to)
+        public string Resolve(NameResolverContext context, string name, NameType to)
         {
             var from = NameTypeDetector.GetType(name);
             if(from == null)
@@ -17,22 +13,16 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
                 return name;
             }
 
-            var resolver = GetTranslator((NameType)from, to);
+            var resolver = GetTranslator(context, (NameType)from, to);
             if(resolver == null)
             {
                 return name;
             }
-            return resolver.Translate(name, _context);
-        }
-
-        public NameResolverContext CreateContext()
-        {
-            _context = new NameResolverContext();
-            return _context;
+            return resolver.Translate(context, name);
         }
 
 
-        public INameTranslator GetTranslator(NameType from, NameType to)
+        public INameTranslator GetTranslator(NameResolverContext context, NameType from, NameType to)
         {
             // TODO AddTranslators
             if(from == NameType.UidAndNetbios && to  == NameType.Upn)
@@ -49,7 +39,7 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
             }
             // There are a case when sAMAccountName@domain.local looks exactly like UPN
             // Let's try an UPN we got from the profile
-            if(from == NameType.Upn && to == NameType.Upn && _context.Profile != null)
+            if(from == NameType.Upn && to == NameType.Upn && context.Profile != null)
             {
                 return new UpnFromProfileNameTranslator();
             }

@@ -4,20 +4,16 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolving
 {   
     public class NameResolverContext
     {
-        private NetbiosDomainName[] _domains { get; set; }
+        private NetbiosDomainName[] _domains;
         public NetbiosDomainName[] Domains => _domains;
 
 
-        private string _baseDn { get; set; }
+        private string _baseDn;
         public string BaseDn => _baseDn;
 
+        
         private LdapProfile _profile;
         public LdapProfile Profile => _profile;
-
-        public NameResolverContext(NetbiosDomainName[] domains = null) 
-        {
-            _domains = domains;
-        }
 
         public NameResolverContext SetDomains(NetbiosDomainName[] domains)
         {

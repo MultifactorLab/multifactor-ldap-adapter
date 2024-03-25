@@ -3,11 +3,11 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolving.NameTranslators
 {
     public class UpnFromProfileNameTranslator : INameTranslator
     {
-        public string Translate(string from, NameResolverContext nameTranslatorContext)
+        public string Translate(NameResolverContext nameResolverContext, string from)
         {
-            if (nameTranslatorContext.Profile != null)
+            if (nameResolverContext.Profile != null)
             {
-                return nameTranslatorContext.Profile.Upn;
+                return nameResolverContext.Profile.Upn;
             }
             return from;
         }

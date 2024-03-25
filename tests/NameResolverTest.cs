@@ -20,10 +20,14 @@ namespace MultiFactor.Ldap.Adapter.Tests
                 }
             );
             var resolver = host.Services.GetRequiredService<NameResolverService>();
-            resolver.CreateContext().SetDomains(new[] { 
-                new NetbiosDomainName("domain.test", "DOMAIN") 
+            var context = new NameResolverContext();
+            context.SetDomains(new[] { 
+                new NetbiosDomainName {
+                    Domain = "domain.test",
+                    NetbiosName = "DOMAIN"
+                }
             });
-            var result = resolver.Resolve(from, NameType.Upn);
+            var result = resolver.Resolve(context, from, NameType.Upn);
             Assert.Equal(result, to);
         }
 
@@ -38,9 +42,5 @@ namespace MultiFactor.Ldap.Adapter.Tests
             Assert.Equal(expectedNameType, type);
         }
 
-        [Fact]
-        public void ShouldGetPartitions()
-        {
-        }
     }
 }

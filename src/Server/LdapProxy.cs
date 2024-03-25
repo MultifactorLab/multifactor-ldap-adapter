@@ -17,6 +17,7 @@ using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
 using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.LdapStream;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
+using MultiFactor.Ldap.Adapter.Core.NameResolving;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -369,13 +370,12 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             var domains = await _ldapService.GetDomains(_serverStream, baseDn);
             var matchedProfile = await _ldapService.ResolveProfile(_serverStream, _userName, baseDn);
-            _nameResolverService
-                .CreateContext()
-                .SetDomains(domains)
-                .SetBaseDn(baseDn)
-                .SetMatchedProfile(matchedProfile);
+            var context = new NameResolverContext();
+            context.SetDomains(domains)
+                   .SetBaseDn(baseDn)
+                   .SetMatchedProfile(matchedProfile);
 
-            return _nameResolverService.Resolve(_userName, loginFormat);
+            return _nameResolverService.Resolve(context, _userName, loginFormat);
         }
 
         private string SearchUserName(LdapAttribute attr)

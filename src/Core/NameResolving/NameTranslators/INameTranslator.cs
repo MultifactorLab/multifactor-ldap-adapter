@@ -2,6 +2,6 @@
 {
     public interface INameTranslator
     {
-        public string Translate(string from, NameResolverContext context);
+        public string Translate(NameResolverContext context, string from);
     }
 }
