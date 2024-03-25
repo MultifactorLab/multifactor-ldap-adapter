@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
 using System;
 using System.Configuration;
@@ -103,6 +104,27 @@ namespace tests
                 }
             ).Services.GetRequiredService<ServiceConfiguration>();
             var message = Assert.Throws<Exception>(configuration);
+        }
+
+        [Fact]
+        public void ReadConfiguration_ShouldReadEnforcedLoginFormat_ShouldReturn()
+        {
+            var configuration = TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+                new[]
+                {
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal-with-enforced-login-format.config"),
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal.config")
+                }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            Assert.NotNull(configuration);
+            Assert.False(configuration.SingleClientMode);
+            var client = configuration.GetClient(IPAddress.Parse("127.0.0.3"));
+            Assert.NotNull(client);
+            Assert.Equal(NameType.Upn, client.EnforcedLoginFormat);
+            var clientWithoutParam = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
+            Assert.NotNull(clientWithoutParam);
+            Assert.Null(clientWithoutParam.EnforcedLoginFormat);
         }
     }
 }

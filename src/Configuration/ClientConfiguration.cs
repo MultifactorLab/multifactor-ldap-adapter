@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -78,6 +79,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Log Format
         /// </summary>
         public string LogFormat { get; set; }
+        public NameType? EnforcedLoginFormat { get; set; }
 
         /// <summary>
         /// Username transfor rules
