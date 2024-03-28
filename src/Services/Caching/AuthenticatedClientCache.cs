@@ -1,7 +1,7 @@
 ﻿using MultiFactor.Ldap.Adapter.Configuration;
-using System.Collections.Concurrent;
-using System;
 using Serilog;
+using System;
+using System.Collections.Concurrent;
 
 namespace MultiFactor.Ldap.Adapter.Services.Caching
 {
@@ -15,9 +15,9 @@ namespace MultiFactor.Ldap.Adapter.Services.Caching
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public bool TryHitCache(string userName, ClientConfiguration clientConfiguration)
+        public bool TryHitCache(AuthenticatedClientCacheConfig cacheConfig, string userName, string clientName)
         {
-            if (!clientConfiguration.AuthenticationCacheLifetime.Enabled) return false;
+            if (!cacheConfig.Enabled) return false;
 
             if (string.IsNullOrEmpty(userName))
             {
@@ -25,15 +25,15 @@ namespace MultiFactor.Ldap.Adapter.Services.Caching
                 return false;
             }
 
-            var id = AuthenticatedClient.ParseId(clientConfiguration.Name, userName);
+            var id = AuthenticatedClient.ParseId(clientName, userName);
             if (!_authenticatedClients.TryGetValue(id, out var authenticatedClient))
             {
                 return false;
             }
 
-            _logger.Debug($"User {userName} authenticated {authenticatedClient.Elapsed.ToString("hh\\:mm\\:ss")} ago. Authentication session period: {clientConfiguration.AuthenticationCacheLifetime.Lifetime}");
+            _logger.Debug($"User {userName} authenticated {authenticatedClient.Elapsed:hh\\:mm\\:ss} ago. Authentication session period: {cacheConfig.Lifetime}");
 
-            if (authenticatedClient.Elapsed <= clientConfiguration.AuthenticationCacheLifetime.Lifetime)
+            if (authenticatedClient.Elapsed <= cacheConfig.Lifetime)
             {
                 return true;
             }
@@ -43,11 +43,11 @@ namespace MultiFactor.Ldap.Adapter.Services.Caching
             return false;
         }
 
-        public void SetCache(string userName, ClientConfiguration clientConfiguration)
+        public void SetCache(AuthenticatedClientCacheConfig cacheConfig, string userName, string clientName)
         {
-            if (!clientConfiguration.AuthenticationCacheLifetime.Enabled || string.IsNullOrEmpty(userName)) return;
+            if (!cacheConfig.Enabled || string.IsNullOrEmpty(userName)) return;
 
-            var client = AuthenticatedClient.Create(clientConfiguration.Name, userName);
+            var client = AuthenticatedClient.Create(clientName, userName);
             if (!_authenticatedClients.ContainsKey(client.Id))
             {
                 _authenticatedClients.TryAdd(client.Id, client);

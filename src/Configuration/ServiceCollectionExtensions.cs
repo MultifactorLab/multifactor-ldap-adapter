@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using MultiFactor.Ldap.Adapter.Services;
+using MultiFactor.Ldap.Adapter.Services.MultiFactorApi;
 using Serilog;
 using System;
 using System.Net.Http;

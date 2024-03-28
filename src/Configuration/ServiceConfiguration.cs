@@ -61,9 +61,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         public ILdapServerConfig ServerConfig { get; private set; }
 
         /// <summary>
-        /// Multifactor API URL
+        /// Multifactor API URLs
         /// </summary>
-        public string ApiUrl { get; set; }
+        public List<string> ApiUrls { get; set; }
 
         /// <summary>
         /// HTTP Proxy for API
@@ -89,7 +89,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Certificate for TLS
         /// </summary>
         public X509Certificate2 X509Certificate { get; set; }
-        
+
         /// <summary>
         /// Certificate Password
         /// </summary>
@@ -109,24 +109,21 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var appSettingsSection = serviceConfig.GetSection("appSettings");
             var appSettings = appSettingsSection as AppSettingsSection;
 
-            var apiUrlSetting                   = appSettings.Settings["multifactor-api-url"]?.Value;
-            var apiProxySetting                 = appSettings.Settings["multifactor-api-proxy"]?.Value;
-            var apiTimeoutSetting               = appSettings.Settings["multifactor-api-timeout"]?.Value;
-            var logLevelSetting                 = appSettings.Settings["logging-level"]?.Value;
+            var apiUrlSetting = appSettings.Settings["multifactor-api-url"]?.Value;
+            var apiProxySetting = appSettings.Settings["multifactor-api-proxy"]?.Value;
+            var apiTimeoutSetting = appSettings.Settings["multifactor-api-timeout"]?.Value;
+            var logLevelSetting = appSettings.Settings["logging-level"]?.Value;
             var certificatePassword = appSettings.Settings["certificate-password"]?.Value;
 
 
-            if (string.IsNullOrEmpty(apiUrlSetting))
-            {
-                throw new Exception("Configuration error: 'multifactor-api-url' element not found");
-            }
+            List<string> apiUrls = ParseApiUrls(apiUrlSetting);
             TimeSpan apiTimeout = ParseHttpTimeout(apiTimeoutSetting);
             if (string.IsNullOrEmpty(logLevelSetting))
             {
                 throw new Exception("Configuration error: 'logging-level' element not found");
             }
 
-            ApiUrl = apiUrlSetting;
+            ApiUrls = apiUrls;
             ApiTimeout = apiTimeout;
             ApiProxy = apiProxySetting;
             LogLevel = logLevelSetting;
@@ -136,7 +133,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             {
                 throw new Exception("Configuration error: Neither 'adapter-ldap-endpoint' or 'adapter-ldaps-endpoint' configured");
             }
-            
+
             ServerConfig = ldapServerConfig;
 
             if (!string.IsNullOrEmpty(certificatePassword))
@@ -199,19 +196,19 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
         private static ClientConfiguration Load(string name, AppSettingsSection appSettings, UserNameTransformRulesSection userNameTransformRulesSection)
         {
-            var ldapServerSetting                               = appSettings.Settings["ldap-server"]?.Value;
-            var ldapBaseDnSetting                               = appSettings.Settings["ldap-base-dn"]?.Value;
-            var multifactorApiKeySetting                        = appSettings.Settings["multifactor-nas-identifier"]?.Value;
-            var multifactorApiSecretSetting                     = appSettings.Settings["multifactor-shared-secret"]?.Value;
-            var serviceAccountsSetting                          = appSettings.Settings["ldap-service-accounts"]?.Value;
-            var serviceAccountsOrganizationUnitSetting          = appSettings.Settings["ldap-service-accounts-ou"]?.Value;
-            var activeDirectoryGroupSetting                     = appSettings.Settings["active-directory-group"]?.Value;
-            var activeDirectory2FaGroupSetting                  = appSettings.Settings["active-directory-2fa-group"]?.Value;
-            var activeDirectory2FaBypassGroupSetting            = appSettings.Settings["active-directory-2fa-bypass-group"]?.Value;
-            var bypassSecondFactorWhenApiUnreachableSetting     = appSettings.Settings["bypass-second-factor-when-api-unreachable"]?.Value;
-            var loadActiveDirectoryNestedGroupsSettings         = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
-            var logLevel                                        = appSettings.Settings["logging-level"]?.Value;
-            var logFormat                                       = appSettings.Settings["logging-format"]?.Value;
+            var ldapServerSetting = appSettings.Settings["ldap-server"]?.Value;
+            var ldapBaseDnSetting = appSettings.Settings["ldap-base-dn"]?.Value;
+            var multifactorApiKeySetting = appSettings.Settings["multifactor-nas-identifier"]?.Value;
+            var multifactorApiSecretSetting = appSettings.Settings["multifactor-shared-secret"]?.Value;
+            var serviceAccountsSetting = appSettings.Settings["ldap-service-accounts"]?.Value;
+            var serviceAccountsOrganizationUnitSetting = appSettings.Settings["ldap-service-accounts-ou"]?.Value;
+            var activeDirectoryGroupSetting = appSettings.Settings["active-directory-group"]?.Value;
+            var activeDirectory2FaGroupSetting = appSettings.Settings["active-directory-2fa-group"]?.Value;
+            var activeDirectory2FaBypassGroupSetting = appSettings.Settings["active-directory-2fa-bypass-group"]?.Value;
+            var bypassSecondFactorWhenApiUnreachableSetting = appSettings.Settings["bypass-second-factor-when-api-unreachable"]?.Value;
+            var loadActiveDirectoryNestedGroupsSettings = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
+            var logLevel = appSettings.Settings["logging-level"]?.Value;
+            var logFormat = appSettings.Settings["logging-format"]?.Value;
 
 
             if (string.IsNullOrEmpty(ldapServerSetting))
@@ -233,7 +230,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 LdapServer = ldapServerSetting,
                 MultifactorApiKey = multifactorApiKeySetting,
                 MultifactorApiSecret = multifactorApiSecretSetting,
-                LdapBaseDn = ldapBaseDnSetting 
+                LdapBaseDn = ldapBaseDnSetting
             };
 
             if (!string.IsNullOrEmpty(serviceAccountsSetting))
@@ -287,17 +284,17 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 configuration.LoadActiveDirectoryNestedGroups = loadActiveDirectoryNestedGroups;
             }
 
-            if(!string.IsNullOrEmpty(logLevel))
+            if (!string.IsNullOrEmpty(logLevel))
             {
                 configuration.LogLevel = logLevel;
             }
 
-            if(!string.IsNullOrEmpty(logFormat))
+            if (!string.IsNullOrEmpty(logFormat))
             {
                 configuration.LogFormat = logFormat;
             }
 
-            if(userNameTransformRulesSection != null)
+            if (userNameTransformRulesSection != null)
             {
                 configuration.UserNameTransformRules.Load(userNameTransformRulesSection);
             }
@@ -327,6 +324,20 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             return appSettings?["logging-level"];
         }
 
+        private static List<string> ParseApiUrls(string apiUrlSetting)
+        {
+            if (string.IsNullOrEmpty(apiUrlSetting))
+            {
+                throw new Exception("Configuration error: 'multifactor-api-url' element not found");
+            }
+            var apiUrls = apiUrlSetting.Split(new char[] { ';' }, 5, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
+            if (apiUrls.Count == 0)
+            {
+                throw new Exception("Configuration error: unable to read 'multifactor-api-url'. Make sure that you use ';' as a separator");
+            }
+
+            return apiUrls;
+        }
         private static TimeSpan ParseHttpTimeout(string mfTimeoutSetting)
         {
             TimeSpan _minimalApiTimeout = TimeSpan.FromSeconds(65);

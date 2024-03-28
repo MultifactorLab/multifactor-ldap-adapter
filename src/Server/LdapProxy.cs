@@ -2,10 +2,14 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
-using MultiFactor.Ldap.Adapter.Core;
-using MultiFactor.Ldap.Adapter.Server.Authentication;
-using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Core;
+using MultiFactor.Ldap.Adapter.Core.Requests;
+using MultiFactor.Ldap.Adapter.Server.Authentication;
+using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
+using MultiFactor.Ldap.Adapter.Server.LdapStream;
+using MultiFactor.Ldap.Adapter.Services;
+using MultiFactor.Ldap.Adapter.Services.SecondFactor;
 using Serilog;
 using System;
 using System.Collections.Concurrent;
@@ -13,26 +17,23 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using MultiFactor.Ldap.Adapter.Server.LdapPacketModifiers;
-using MultiFactor.Ldap.Adapter.Core.Requests;
-using MultiFactor.Ldap.Adapter.Server.LdapStream;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
     public class LdapProxy
     {
-        private TcpClient _clientConnection;
-        private TcpClient _serverConnection;
-        private Stream _clientStream;
-        private Stream _serverStream;
-        private readonly MultiFactorApiClient _apiClient;
-        private ClientConfiguration _clientConfig;
-        private ILogger _logger;
+        private readonly TcpClient _clientConnection;
+        private readonly TcpClient _serverConnection;
+        private readonly Stream _clientStream;
+        private readonly Stream _serverStream;
+        private readonly SecondFactorVerifier _secondFactorVerifier;
+        private readonly ClientConfiguration _clientConfig;
+        private readonly ILogger _logger;
         private string _userName;
         private string _lookupUserName;
         private string _transformedUserName;
 
-        private LdapService _ldapService;
+        private readonly LdapService _ldapService;
 
         private LdapProxyAuthenticationStatus _status;
 
@@ -41,16 +42,22 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         private readonly RandomWaiter _waiter;
 
-        public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, 
-            ClientConfiguration clientConfig, MultiFactorApiClient apiClient,
-            RandomWaiter waiter, ILogger logger)
+        public LdapProxy(
+            TcpClient clientConnection, 
+            Stream clientStream,
+            TcpClient serverConnection,
+            Stream serverStream, 
+            ClientConfiguration clientConfig,
+            SecondFactorVerifier secondFactorVerifier,
+            RandomWaiter waiter, 
+            ILogger logger)
         {
             _clientConnection = clientConnection ?? throw new ArgumentNullException(nameof(clientConnection));
             _clientStream = clientStream ?? throw new ArgumentNullException(nameof(clientStream));
             _serverConnection = serverConnection ?? throw new ArgumentNullException(nameof(serverConnection));
             _serverStream = serverStream ?? throw new ArgumentNullException(nameof(serverStream));
 
-            _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+            _secondFactorVerifier = secondFactorVerifier ?? throw new ArgumentNullException(nameof(secondFactorVerifier));
             _waiter = waiter ?? throw new ArgumentNullException(nameof(waiter));
             _clientConfig = clientConfig ?? throw new ArgumentNullException(nameof(clientConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -281,7 +288,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             }
                             
                             var connectedClient = new ConnectedClientInfo(_userName, _clientConfig);
-                            var result = await _apiClient.Authenticate(connectedClient); //second factor
+                            var result = await _secondFactorVerifier.Authenticate(connectedClient);
 
                             if (!result) // second factor failed
                             {

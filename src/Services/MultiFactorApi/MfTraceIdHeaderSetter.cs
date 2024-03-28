@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System;
 
-namespace MultiFactor.Ldap.Adapter.Services
+namespace MultiFactor.Ldap.Adapter.Services.MultiFactorApi
 {
     public class MfTraceIdHeaderSetter : DelegatingHandler
     {

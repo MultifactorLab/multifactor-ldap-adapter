@@ -1,6 +1,7 @@
 ﻿using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Core.Logging;
 using MultiFactor.Ldap.Adapter.Server;
+using MultiFactor.Ldap.Adapter.Services.SecondFactor;
 using System.IO;
 using System.Net.Sockets;
 
@@ -8,14 +9,16 @@ namespace MultiFactor.Ldap.Adapter.Services
 {
     public class LdapProxyFactory
     {
-        private readonly MultiFactorApiClient _apiClient;
+        private readonly SecondFactorVerifier _secondFactorVerifier;
         private readonly ClientLoggerProvider _loggerProvider;
         private readonly RandomWaiter _randomWaiter;
 
-        public LdapProxyFactory(MultiFactorApiClient apiClient, ClientLoggerProvider loggerProvider,
+        public LdapProxyFactory(
+            SecondFactorVerifier secondFactorVerifier,
+            ClientLoggerProvider loggerProvider,
             RandomWaiter randomWaiter)
         {
-            _apiClient = apiClient;
+            _secondFactorVerifier = secondFactorVerifier;
             _loggerProvider = loggerProvider;
             _randomWaiter = randomWaiter ?? throw new System.ArgumentNullException(nameof(randomWaiter));
         }
@@ -28,7 +31,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 serverConn,
                 serverStream,
                 clientConfig,
-                _apiClient,
+                _secondFactorVerifier,
                 _randomWaiter,
                 _loggerProvider.GetLogger(clientConfig));
         }

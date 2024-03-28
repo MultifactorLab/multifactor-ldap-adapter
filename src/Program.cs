@@ -8,6 +8,8 @@ using MultiFactor.Ldap.Adapter.Core.Logging;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;
+using MultiFactor.Ldap.Adapter.Services.MultiFactorApi;
+using MultiFactor.Ldap.Adapter.Services.SecondFactor;
 using Serilog;
 using Serilog.Core;
 using System;
@@ -24,9 +26,9 @@ namespace MultiFactor.Ldap.Adapter
             try
             {
                 host = Host
-                    .CreateDefaultBuilder(args)
-                    .ConfigureServices(services => ConfigureServices(services))
-                    .Build();
+                .CreateDefaultBuilder(args)
+                .ConfigureServices(services => ConfigureServices(services))
+                .Build();
                 host.Run();
             }
             catch (Exception ex)
@@ -68,6 +70,7 @@ namespace MultiFactor.Ldap.Adapter
                 return serviceConf;
             });
             services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
+            services.AddSingleton<SecondFactorVerifier>();
             services.AddSingleton<MultiFactorApiClient>();
             services.AddHttpClientWithProxy();
             services.AddSingleton<LdapProxyFactory>();
