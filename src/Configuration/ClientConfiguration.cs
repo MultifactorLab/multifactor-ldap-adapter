@@ -79,7 +79,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Log Format
         /// </summary>
         public string LogFormat { get; set; }
-        public NameType? EnforcedLoginFormat { get; set; }
+        public LdapIdentityFormat LdapIdentityFormat { get; set; }
 
         /// <summary>
         /// Username transfor rules

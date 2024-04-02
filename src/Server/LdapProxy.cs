@@ -18,6 +18,7 @@ using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.LdapStream;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Core.NameResolving;
+using Org.BouncyCastle.Security;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -207,9 +208,9 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                         var baseDn = await _ldapService.GetBaseDn(_serverStream, _userName);
 
-                        if(_clientConfig.EnforcedLoginFormat != null)
+                        if(_clientConfig.LdapIdentityFormat != LdapIdentityFormat.None)
                         {
-                            _userName = await EnforceLoginFormat(baseDn, _clientConfig.EnforcedLoginFormat.Value);
+                            _userName = await EnforceLdapIdentityFormat(baseDn, _clientConfig.LdapIdentityFormat);
                         }
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName, baseDn);
@@ -280,7 +281,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                         if (profileLoaded && !bypass)
                         {
-                            if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
+                            if (LdapService.GetIdentityType(_userName) == Core.IdentityType.DistinguishedName)   //user uses DN as login ;)
                             {
                                 if (profile?.Uid == null)
                                 {
@@ -366,15 +367,15 @@ namespace MultiFactor.Ldap.Adapter.Server
             return dn;
         }
 
-        private async Task<string> EnforceLoginFormat(string baseDn, NameType loginFormat)
+        private async Task<string> EnforceLdapIdentityFormat(string baseDn, LdapIdentityFormat loginFormat)
         {
+            if (loginFormat == LdapIdentityFormat.None)
+            {
+                throw new ArgumentException("Incorrect identity format was passed");
+            }
             var domains = await _ldapService.GetDomains(_serverStream, baseDn);
             var matchedProfile = await _ldapService.ResolveProfile(_serverStream, _userName, baseDn);
-            var context = new NameResolverContext();
-            context.SetDomains(domains)
-                   .SetBaseDn(baseDn)
-                   .SetMatchedProfile(matchedProfile);
-
+            var context = new NameResolverContext(domains, matchedProfile);
             return _nameResolverService.Resolve(context, _userName, loginFormat);
         }
 

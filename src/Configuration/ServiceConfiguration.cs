@@ -13,9 +13,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
-using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using System.Threading;
+using LdapIdentityFormat = MultiFactor.Ldap.Adapter.Core.NameResolve.LdapIdentityFormat;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -214,7 +214,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var loadActiveDirectoryNestedGroupsSettings         = appSettings.Settings["load-active-directory-nested-groups"]?.Value;
             var logLevel                                        = appSettings.Settings["logging-level"]?.Value;
             var logFormat                                       = appSettings.Settings["logging-format"]?.Value;
-            var enforcedLoginFormatString                       = appSettings.Settings["enforce-login-format"]?.Value;
+            var transformLdapIdentityString                     = appSettings.Settings["transform-ldap-identity"]?.Value;
 
             if (string.IsNullOrEmpty(ldapServerSetting))
             {
@@ -229,10 +229,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 throw new Exception("Configuration error: 'multifactor-shared-secret' element not found");
             }
 
-            NameType? enforcedLoginFormat = null;
-            if (Enum.TryParse<NameType>(enforcedLoginFormatString, true, out var parsedLoginFormat))
+            LdapIdentityFormat transformLdapIdentityFormat = LdapIdentityFormat.None;
+            if (!string.IsNullOrEmpty(transformLdapIdentityString) && 
+                !Enum.TryParse<LdapIdentityFormat>(transformLdapIdentityString, true, out transformLdapIdentityFormat))
             {
-                enforcedLoginFormat = parsedLoginFormat;
+                throw new Exception("Configuration error: 'transform-ldap-identity' element has a wrong value");
             }
             
             var configuration = new ClientConfiguration
@@ -242,7 +243,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 MultifactorApiKey = multifactorApiKeySetting,
                 MultifactorApiSecret = multifactorApiSecretSetting,
                 LdapBaseDn = ldapBaseDnSetting,
-                EnforcedLoginFormat = enforcedLoginFormat
+                LdapIdentityFormat = transformLdapIdentityFormat
             };
 
             if (!string.IsNullOrEmpty(serviceAccountsSetting))

@@ -106,25 +106,36 @@ namespace tests
             var message = Assert.Throws<Exception>(configuration);
         }
 
-        [Fact]
-        public void ReadConfiguration_ShouldReadEnforcedLoginFormat_ShouldReturn()
+        [Theory]
+        [InlineData("client-minimal-with-transform-ldap-identity.config", LdapIdentityFormat.Upn)]
+        [InlineData("client-minimal.config", LdapIdentityFormat.None)]
+        public void ReadConfiguration_ShouldReadEnforcedLoginFormat_ShouldReturn(string path, LdapIdentityFormat type)
         {
             var configuration = TestHostFactory.CreateHost(
                 TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
                 new[]
                 {
-                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal-with-enforced-login-format.config"),
-                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal.config")
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, path),
                 }
             ).Services.GetRequiredService<ServiceConfiguration>();
             Assert.NotNull(configuration);
-            Assert.False(configuration.SingleClientMode);
-            var client = configuration.GetClient(IPAddress.Parse("127.0.0.3"));
+            var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
             Assert.NotNull(client);
-            Assert.Equal(NameType.Upn, client.EnforcedLoginFormat);
-            var clientWithoutParam = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
-            Assert.NotNull(clientWithoutParam);
-            Assert.Null(clientWithoutParam.EnforcedLoginFormat);
+            Assert.Equal(type, client.LdapIdentityFormat);
+        }
+
+        [Fact]
+        public void ReadConfiguration_ShouldReadEnforcedLoginFormat_ShouldThrow()
+        {
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
+              TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+              new[]
+              {
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal-with-broken-transform-ldap-identity.config")
+              }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            var ex = Assert.Throws<Exception>(configuration);
+            Assert.Contains("element has a wrong value", ex.Message);
         }
     }
 }

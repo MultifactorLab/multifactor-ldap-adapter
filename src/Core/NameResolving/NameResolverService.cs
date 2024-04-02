@@ -5,7 +5,7 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
 {
     public class NameResolverService
     {
-        public string Resolve(NameResolverContext context, string name, NameType to)
+        public string Resolve(NameResolverContext context, string name, LdapIdentityFormat to)
         {
             var from = NameTypeDetector.GetType(name);
             if(from == null)
@@ -13,7 +13,7 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
                 return name;
             }
 
-            var resolver = GetTranslator(context, (NameType)from, to);
+            var resolver = GetTranslator(context, (LdapIdentityFormat)from, to);
             if(resolver == null)
             {
                 return name;
@@ -22,24 +22,24 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
         }
 
 
-        public INameTranslator GetTranslator(NameResolverContext context, NameType from, NameType to)
+        public INameTranslator GetTranslator(NameResolverContext context, LdapIdentityFormat from, LdapIdentityFormat to)
         {
             // TODO AddTranslators
-            if(from == NameType.UidAndNetbios && to  == NameType.Upn)
+            if(from == LdapIdentityFormat.UidAndNetbios && to  == LdapIdentityFormat.Upn)
             {
                 return new sAMAccountNameAndNetbiosToUpnNameTranslator();
             }
-            else if(from == NameType.NetBIOSAndUid && to == NameType.Upn)
+            else if(from == LdapIdentityFormat.NetBIOSAndUid && to == LdapIdentityFormat.Upn)
             {
                 return new NetbiosToUpnNameTranslator();
             }
-            else if(from == NameType.DistinguishedName && to == NameType.Upn)
+            else if(from == LdapIdentityFormat.DistinguishedName && to == LdapIdentityFormat.Upn)
             {
                 return new DistinguishedNameToUpnTranslator();
             }
             // There are a case when sAMAccountName@domain.local looks exactly like UPN
             // Let's try an UPN we got from the profile
-            if(from == NameType.Upn && to == NameType.Upn && context.Profile != null)
+            if(from == LdapIdentityFormat.Upn && to == LdapIdentityFormat.Upn && context.Profile != null)
             {
                 return new UpnFromProfileNameTranslator();
             }

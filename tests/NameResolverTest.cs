@@ -20,23 +20,22 @@ namespace MultiFactor.Ldap.Adapter.Tests
                 }
             );
             var resolver = host.Services.GetRequiredService<NameResolverService>();
-            var context = new NameResolverContext();
-            context.SetDomains(new[] { 
+            var context = new NameResolverContext(new[] {
                 new NetbiosDomainName {
                     Domain = "domain.test",
                     NetbiosName = "DOMAIN"
                 }
-            });
-            var result = resolver.Resolve(context, from, NameType.Upn);
+            }, null);
+            var result = resolver.Resolve(context, from, LdapIdentityFormat.Upn);
             Assert.Equal(result, to);
         }
 
         [Theory]
-        [InlineData("admin@domain", NameType.UidAndNetbios)]
-        [InlineData("admin@domain.local", NameType.Upn)]
-        [InlineData("DOMAIN\\admin", NameType.NetBIOSAndUid)]
-        [InlineData("admin", NameType.SamAccountName)]
-        public void ShouldDetermineNameType(string name, NameType expectedNameType)
+        [InlineData("admin@domain", LdapIdentityFormat.UidAndNetbios)]
+        [InlineData("admin@domain.local", LdapIdentityFormat.Upn)]
+        [InlineData("DOMAIN\\admin", LdapIdentityFormat.NetBIOSAndUid)]
+        [InlineData("admin", LdapIdentityFormat.SamAccountName)]
+        public void ShouldDetermineNameType(string name, LdapIdentityFormat expectedNameType)
         {
             var type = NameTypeDetector.GetType(name);
             Assert.Equal(expectedNameType, type);
