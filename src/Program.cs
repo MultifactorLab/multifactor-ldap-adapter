@@ -75,9 +75,9 @@ namespace MultiFactor.Ldap.Adapter
             services.AddSingleton<LdapServersFactory>();
             services.AddSingleton<AuthenticatedClientCache>();
             services.AddMemoryCache();
+            services.AddTransient<NameResolverService>();
             services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
             services.AddHostedService<ServerHost>();
-            services.AddTransient<NameResolverService>();
         }
 
         private static string FlattenException(Exception exception)

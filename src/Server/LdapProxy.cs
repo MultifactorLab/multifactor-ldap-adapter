@@ -46,7 +46,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         public LdapProxy(TcpClient clientConnection, Stream clientStream, TcpClient serverConnection, Stream serverStream, 
             ClientConfiguration clientConfig, MultiFactorApiClient apiClient,
-            RandomWaiter waiter, ILogger logger)
+            RandomWaiter waiter, ILogger logger, NameResolverService nameResolverService)
         {
             _clientConnection = clientConnection ?? throw new ArgumentNullException(nameof(clientConnection));
             _clientStream = clientStream ?? throw new ArgumentNullException(nameof(clientStream));
@@ -59,7 +59,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             _ldapService = new LdapService(clientConfig);
-            _nameResolverService = new NameResolverService();
+            _nameResolverService = nameResolverService;
         }
 
         public async Task Start()
@@ -373,9 +373,21 @@ namespace MultiFactor.Ldap.Adapter.Server
             {
                 throw new ArgumentException("Incorrect identity format was passed");
             }
+
+            _logger.Debug($"{_userName} username will be transformed to {_clientConfig.LdapIdentityFormat} format"); ;
             var domains = await _ldapService.GetDomains(_serverStream, baseDn);
             var matchedProfile = await _ldapService.ResolveProfile(_serverStream, _userName, baseDn);
-            var context = new NameResolverContext(domains, matchedProfile);
+            if (matchedProfile == null) 
+            {
+                _logger.Error($"{_userName} profile was not found, unable to translate the username");
+                return _userName;
+            }
+            var context = new NameResolverContext()
+            {
+                Domains = domains,
+                Profile = matchedProfile
+            };
+
             return _nameResolverService.Resolve(context, _userName, loginFormat);
         }
 

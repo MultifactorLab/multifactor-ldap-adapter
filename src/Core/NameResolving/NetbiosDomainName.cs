@@ -2,7 +2,7 @@
 {
     public class NetbiosDomainName
     {
-        public string Domain { get; set; }
-        public string NetbiosName { get; set; }
+        public string Domain;
+        public string NetbiosName;
     }
 }
