@@ -10,6 +10,8 @@
     <None Remove="app.config" />
     <None Remove="Assets\clients\client-empty-client-ip.config" />
     <None Remove="Assets\clients\client-empty-ldap-server.config" />
+    <None Remove="Assets\clients\client-minimal-with-broken-transform-ldap-identity.config" />
+    <None Remove="Assets\clients\client-minimal-with-transform-ldap-identity.config" />
     <None Remove="Assets\clients\client-minimal.config" />
     <None Remove="Assets\clients\client-wrong-client-ip.config" />
     <None Remove="Assets\root-empty-adapter-ldap-endpoint.config" />
@@ -32,6 +34,16 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="Assets\clients\client-empty-ldap-server.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\clients\client-minimal-with-broken-transform-ldap-identity.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\clients\client-minimal-with-transform-ldap-identity.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

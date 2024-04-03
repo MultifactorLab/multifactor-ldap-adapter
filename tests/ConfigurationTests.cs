@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Tests.Fixtures;
 using System;
 using System.Configuration;
@@ -103,6 +104,38 @@ namespace tests
                 }
             ).Services.GetRequiredService<ServiceConfiguration>();
             var message = Assert.Throws<Exception>(configuration);
+        }
+
+        [Theory]
+        [InlineData("client-minimal-with-transform-ldap-identity.config", LdapIdentityFormat.Upn)]
+        [InlineData("client-minimal.config", LdapIdentityFormat.None)]
+        public void ReadConfiguration_ShouldReadEnforcedLoginFormat_ShouldReturn(string path, LdapIdentityFormat type)
+        {
+            var configuration = TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+                new[]
+                {
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, path),
+                }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            Assert.NotNull(configuration);
+            var client = configuration.GetClient(IPAddress.Parse("127.0.0.2"));
+            Assert.NotNull(client);
+            Assert.Equal(type, client.LdapIdentityFormat);
+        }
+
+        [Fact]
+        public void ReadConfiguration_ShouldReadEnforcedLoginFormat_ShouldThrow()
+        {
+            Func<ServiceConfiguration> configuration = () => TestHostFactory.CreateHost(
+              TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "app.config"),
+              new[]
+              {
+                    TestEnvironment.GetAssetPath(TestAssetLocation.ClientsDirectory, "client-minimal-with-broken-transform-ldap-identity.config")
+              }
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            var ex = Assert.Throws<Exception>(configuration);
+            Assert.Contains("element has a wrong value", ex.Message);
         }
     }
 }

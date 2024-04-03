@@ -5,6 +5,7 @@ using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Configuration.Core;
 using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Core.Logging;
+using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Server;
 using MultiFactor.Ldap.Adapter.Services;
 using MultiFactor.Ldap.Adapter.Services.Caching;
@@ -74,6 +75,7 @@ namespace MultiFactor.Ldap.Adapter
             services.AddSingleton<LdapServersFactory>();
             services.AddSingleton<AuthenticatedClientCache>();
             services.AddMemoryCache();
+            services.AddTransient<NameResolverService>();
             services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
             services.AddHostedService<ServerHost>();
         }
