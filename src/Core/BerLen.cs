@@ -2,7 +2,7 @@
 {
     public struct BerLen
     {
-        public int Length { get; set; }
-        public int BerByteCount { get; set; }
+        public int Length { get; init; }
+        public int BerByteCount { get; init; }
     }
 }

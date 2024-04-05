@@ -18,29 +18,28 @@ using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.LdapStream;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Core.NameResolving;
-using Org.BouncyCastle.Security;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
     public class LdapProxy
     {
-        private TcpClient _clientConnection;
-        private TcpClient _serverConnection;
-        private Stream _clientStream;
-        private Stream _serverStream;
+        private readonly TcpClient _clientConnection;
+        private readonly TcpClient _serverConnection;
+        private readonly Stream _clientStream;
+        private readonly Stream _serverStream;
         private readonly MultiFactorApiClient _apiClient;
-        private ClientConfiguration _clientConfig;
-        private ILogger _logger;
+        private readonly ClientConfiguration _clientConfig;
+        private readonly ILogger _logger;
         private string _userName;
         private string _lookupUserName;
         private string _transformedUserName;
-        private NameResolverService _nameResolverService;
-        private LdapService _ldapService;
+        private readonly NameResolverService _nameResolverService;
+        private readonly LdapService _ldapService;
 
         private LdapProxyAuthenticationStatus _status;
 
-        private static readonly ConcurrentDictionary<string, string> _usersDn2Cn = new ConcurrentDictionary<string, string>();
-        private static readonly ConcurrentDictionary<string, string> _usersCn2Dn = new ConcurrentDictionary<string, string>();
+        private static readonly ConcurrentDictionary<string, string> _usersDn2Cn = new();
+        private static readonly ConcurrentDictionary<string, string> _usersCn2Dn = new();
 
         private readonly RandomWaiter _waiter;
 
@@ -382,12 +381,8 @@ namespace MultiFactor.Ldap.Adapter.Server
                 _logger.Error($"{_userName} profile was not found, unable to translate the username");
                 return _userName;
             }
-            var context = new NameResolverContext()
-            {
-                Domains = domains,
-                Profile = matchedProfile
-            };
 
+            var context = new NameResolverContext(domains, matchedProfile);
             return _nameResolverService.Resolve(context, _userName, loginFormat);
         }
 

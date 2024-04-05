@@ -1,30 +1,38 @@
 ﻿using Microsoft.Extensions.Hosting;
+using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Server;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter
 {
-    public class ServerHost : IHostedService
+    internal class ServerHost : IHostedService
     {
         private Task _executingTask;
         private readonly CancellationTokenSource _stoppingCts = new CancellationTokenSource();
 
         private ILogger _logger;
-        private readonly IReadOnlyList<LdapServer> _ldapServers;
+        private readonly IEnumerable<ILdapServer> _ldapServers;
+        private readonly ApplicationVariables _variables;
 
-        public ServerHost(ILogger logger, IReadOnlyList<LdapServer> ldapServers)
+        public ServerHost(ILogger logger, IEnumerable<ILdapServer> ldapServers,
+            ApplicationVariables variables)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _ldapServers = ldapServers ?? throw new ArgumentNullException(nameof(ldapServers));
+            _logger = logger;
+            _ldapServers = ldapServers;
+            _variables = variables;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            foreach (var server in _ldapServers)
+            _logger.Information("Multifactor (c) LDAP Adapter, v. {Version:l}",
+                _variables.AppVersion);
+
+            foreach (var server in _ldapServers.Where(x => x.Enabled))
             {
                 server.Start();
             }
@@ -68,8 +76,8 @@ namespace MultiFactor.Ldap.Adapter
             finally
             {
                 // Wait until the task completes or the stop token triggers
-                await Task.WhenAny(_executingTask, Task.Delay(Timeout.Infinite,
-                                                          cancellationToken));             }
+                await Task.WhenAny(_executingTask, Task.Delay(Timeout.Infinite, cancellationToken));
+            }
         }
 
         protected async Task ExecuteAsync(CancellationToken cancellationToken)

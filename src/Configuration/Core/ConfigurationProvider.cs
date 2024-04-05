@@ -7,20 +7,24 @@ namespace MultiFactor.Ldap.Adapter.Configuration.Core
 {
     public class ConfigurationProvider : IConfigurationProvider
     {
-        public System.Configuration.Configuration[] GetClientConfiguration()
+        public Config[] GetClientConfiguration()
         {
             var clientConfigFilesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "clients");
-            var clientConfigFiles = Directory.Exists(clientConfigFilesPath) ? Directory.GetFiles(clientConfigFilesPath, "*.config") : new string[0];
+            var clientConfigFiles = Directory.Exists(clientConfigFilesPath) 
+                ? Directory.GetFiles(clientConfigFilesPath, "*.config", SearchOption.AllDirectories) 
+                : Array.Empty<string>();
             return clientConfigFiles.Select(clientConfigFile =>
             {
-                var customConfigFileMap = new ExeConfigurationFileMap();
-                customConfigFileMap.ExeConfigFilename = clientConfigFile;
+                var customConfigFileMap = new ExeConfigurationFileMap
+                {
+                    ExeConfigFilename = clientConfigFile
+                };
 
                 return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None);
             }).ToArray();
         }
 
-        public System.Configuration.Configuration GetRootConfiguration()
+        public Config GetRootConfiguration()
         {
             return ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
         }

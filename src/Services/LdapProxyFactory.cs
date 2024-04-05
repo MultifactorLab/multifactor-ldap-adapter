@@ -20,7 +20,7 @@ namespace MultiFactor.Ldap.Adapter.Services
         {
             _apiClient = apiClient;
             _loggerProvider = loggerProvider;
-            _randomWaiter = randomWaiter ?? throw new System.ArgumentNullException(nameof(randomWaiter));
+            _randomWaiter = randomWaiter;
             _nameResolverService = nameResolverService;
         }
 
