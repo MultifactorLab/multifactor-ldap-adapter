@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using Config = System.Configuration.Configuration;
 
 namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
 {
@@ -15,7 +16,7 @@ namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        public System.Configuration.Configuration GetRootConfiguration()
+        public Config GetRootConfiguration()
         {
             if (string.IsNullOrWhiteSpace(_options.RootConfigFilePath))
             {
@@ -29,7 +30,7 @@ namespace MultiFactor.Ldap.Adapter.Tests.Fixtures.ConfigLoading
             return ConfigurationManager.OpenMappedExeConfiguration(customConfigFileMap, ConfigurationUserLevel.None, true);
         }
 
-        public System.Configuration.Configuration[] GetClientConfiguration()
+        public Config[] GetClientConfiguration()
         {
             return _options.ClientConfigFilePaths.Select(path => {
                 var customConfigFileMap = new ExeConfigurationFileMap

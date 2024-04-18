@@ -22,7 +22,7 @@ namespace MultiFactor.Ldap.Adapter.Core
             {
                 var subj = Dns.GetHostEntry("").HostName;
 
-                logger.Debug($"Generating self-signing certificate for TLS with subject CN={subj}");
+                logger.Debug("Generating self-signing certificate for TLS with subject CN={subj:l}", subj);
 
                 var certService = new CertificateService();
                 var cert = certService.GenerateCertificate(subj);
@@ -30,7 +30,7 @@ namespace MultiFactor.Ldap.Adapter.Core
                 var data = cert.Export(X509ContentType.Pfx);
                 File.WriteAllBytes(certPath, data);
 
-                logger.Information($"Self-signed certificate with subject CN={subj} saved to {certPath}");
+                logger.Information("Self-signed certificate with subject CN={subj:l} saved to {certPath:l}", subj, certPath);
 
                 configuration.X509Certificate = cert;
             }
@@ -38,15 +38,14 @@ namespace MultiFactor.Ldap.Adapter.Core
             {
                 if (!string.IsNullOrEmpty(configuration.CertificatePassword))
                 {
-                    logger.Debug($"Loading certificate for TLS from {certPath} with CertificatePassword XXX");
+                    logger.Debug("Loading certificate for TLS from {CertPath:l} with CertificatePassword XXX", certPath);
                     configuration.X509Certificate = new X509Certificate2(certPath, configuration.CertificatePassword);
                 }   
                 else
                 {
-                    logger.Debug($"Loading certificate for TLS from {certPath}");
+                    logger.Debug("Loading certificate for TLS from {CertPath:l}", certPath);
                     configuration.X509Certificate = new X509Certificate2(certPath);
                 }
-
             }
         }
     }

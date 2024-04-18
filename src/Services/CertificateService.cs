@@ -31,8 +31,8 @@ namespace MultiFactor.Ldap.Adapter.Services
             certificateGenerator.SetNotBefore(DateTime.UtcNow.Date);
             certificateGenerator.SetNotAfter(DateTime.UtcNow.Date.AddYears(10));
 
-            certificateGenerator.AddExtension(X509Extensions.KeyUsage.Id, false, new KeyUsage(KeyUsage.KeyEncipherment |KeyUsage.DigitalSignature));
-            certificateGenerator.AddExtension(X509Extensions.ExtendedKeyUsage.Id, false, new ExtendedKeyUsage(new[] { KeyPurposeID.IdKPServerAuth }));
+            certificateGenerator.AddExtension(X509Extensions.KeyUsage.Id, false, new KeyUsage(KeyUsage.KeyEncipherment | KeyUsage.DigitalSignature));
+            certificateGenerator.AddExtension(X509Extensions.ExtendedKeyUsage.Id, false, new ExtendedKeyUsage(new[] { KeyPurposeID.id_kp_serverAuth }));
 
             const int strength = 2048;
             var keyGenerationParameters = new KeyGenerationParameters(random, strength);

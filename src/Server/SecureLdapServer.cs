@@ -3,6 +3,7 @@
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 using MultiFactor.Ldap.Adapter.Configuration;
+using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Services;
 using Serilog;
 using System.IO;
@@ -14,12 +15,12 @@ using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
-    public class LdapsServer : LdapServer
+    internal class SecureLdapServer : LdapServerBase, ILdapServer
     {
-        public LdapsServer(IPEndPoint localEndpoint, ServiceConfiguration configuration, LdapProxyFactory proxyFactory, ILogger logger) 
-            : base(localEndpoint, configuration, proxyFactory, logger)
-        {
-        }
+        public SecureLdapServer(ServiceConfiguration configuration, LdapProxyFactory proxyFactory, ILogger logger) 
+            : base(configuration, proxyFactory, logger) { }
+
+        public bool Enabled => _serviceConfiguration.ServerConfig.AdapterLdapsEndpoint != null;
 
         protected override async Task<Stream> GetClientStream(TcpClient client)
         {
@@ -32,14 +33,22 @@ namespace MultiFactor.Ldap.Adapter.Server
             return tlsStream;
         }
 
+        public override void Start()
+        {
+            TlsCertificateFactory.EnsureTlsCertificatesExist(Constants.ApplicationPath, _serviceConfiguration, _logger);
+            base.Start();
+        }
+
+        protected override IPEndPoint GetLocalEndpoint() => _serviceConfiguration.ServerConfig.AdapterLdapsEndpoint;
+
         protected override void LogStart()
         {
-            _logger.Information($"Starting ldaps server on {_localEndpoint}");
+            _logger.Information($"Starting ldaps server on {GetLocalEndpoint()}");
         }
 
         protected override void LogStop()
         {
-            _logger.Information($"Stopping ldaps server on {_localEndpoint}");
+            _logger.Information($"Stopping ldaps server on {GetLocalEndpoint}");
         }
     }
 }

@@ -45,11 +45,12 @@ namespace MultiFactor.Ldap.Adapter
 
                 host?.StopAsync();
             }
-
         }
 
         private static void ConfigureServices(IServiceCollection services)
         {
+            services.AddSingleton(prov => ApplicationVariablesFactory.Create());
+
             var loggingLevelSwitch = new LoggingLevelSwitch();
             services.AddSingleton<ClientLoggerProvider>();
             services.AddSingleton(sp => {
@@ -62,21 +63,19 @@ namespace MultiFactor.Ldap.Adapter
                 var configurationProvider = sp.GetRequiredService<IConfigurationProvider>();
                 var logger = sp.GetRequiredService<ILogger>();
                 var serviceConf = new ServiceConfiguration(configurationProvider, logger);
-                if (serviceConf.ServerConfig.AdapterLdapsEndpoint != null)
-                {
-                    TlsCertificateFactory.EnsureTlsCertificatesExist(Core.Constants.ApplicationPath, serviceConf, Log.Logger);
-                }
                 return serviceConf;
             });
             services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
             services.AddSingleton<MultiFactorApiClient>();
             services.AddHttpClientWithProxy();
             services.AddSingleton<LdapProxyFactory>();
-            services.AddSingleton<LdapServersFactory>();
             services.AddSingleton<AuthenticatedClientCache>();
             services.AddMemoryCache();
             services.AddTransient<NameResolverService>();
-            services.AddSingleton(prov => prov.GetRequiredService<LdapServersFactory>().CreateServers());
+
+            services.AddSingleton<ILdapServer, LdapServer>();
+            services.AddSingleton<ILdapServer, SecureLdapServer>();
+
             services.AddHostedService<ServerHost>();
         }
 

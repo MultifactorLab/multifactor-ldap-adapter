@@ -13,7 +13,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
-using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using System.Threading;
 using LdapIdentityFormat = MultiFactor.Ldap.Adapter.Core.NameResolve.LdapIdentityFormat;
 

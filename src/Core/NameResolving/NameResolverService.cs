@@ -16,21 +16,20 @@ namespace MultiFactor.Ldap.Adapter.Core.NameResolve
         public string Resolve(NameResolverContext context, string name, LdapIdentityFormat to)
         {
             var from = NameTypeDetector.GetType(name);
-            if(from == null)
+            if (from == null)
             {
                 return name;
             }
 
             var resolver = GetTranslator(context, (LdapIdentityFormat)from, to);
-            if(resolver == null)
+            if (resolver == null)
             {
                 return name;
             }
             return resolver.Translate(context, name);
         }
 
-
-        public INameTranslator GetTranslator(NameResolverContext context, LdapIdentityFormat from, LdapIdentityFormat to)
+        private INameTranslator GetTranslator(NameResolverContext context, LdapIdentityFormat from, LdapIdentityFormat to)
         {
             if (from == LdapIdentityFormat.UidAndNetbios && to  == LdapIdentityFormat.Upn)
             {
