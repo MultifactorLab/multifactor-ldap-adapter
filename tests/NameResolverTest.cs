@@ -20,16 +20,12 @@ namespace MultiFactor.Ldap.Adapter.Tests
                 }
             );
             var resolver = host.Services.GetRequiredService<NameResolverService>();
-            var context = new NameResolverContext
-            {
-                Domains = new[] {
-                    new NetbiosDomainName {
-                        Domain = "domain.test",
-                        NetbiosName = "DOMAIN"
-                    }
-                },
-                Profile = null
-            };
+            var context = new NameResolverContext(new[] {
+                new NetbiosDomainName {
+                    Domain = "domain.test",
+                    NetbiosName = "DOMAIN"
+                }
+            }, null);
             var result = resolver.Resolve(context, from, LdapIdentityFormat.Upn);
             Assert.Equal(result, to);
         }
