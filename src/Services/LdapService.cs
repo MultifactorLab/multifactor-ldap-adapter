@@ -131,7 +131,8 @@ namespace MultiFactor.Ldap.Adapter.Services
 
         private LdapAttribute[] GetFreeIpaMemberOfFilter(string userName)
         {
-            return new[] {
+            return new[] 
+            {
                 new LdapAttribute((byte)LdapFilterChoice.equalityMatch) 
                 {
                     ChildAttributes = 
