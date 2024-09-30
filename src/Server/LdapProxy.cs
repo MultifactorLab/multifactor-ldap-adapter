@@ -61,7 +61,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _nameResolverService = nameResolverService;
         }
 
-        public async Task PrecessDataExchange()
+        public async Task ProcessDataExchange()
         {
             var from = _clientConnection.Client.RemoteEndPoint.ToString();
             var to = _serverConnection.Client.RemoteEndPoint.ToString();
