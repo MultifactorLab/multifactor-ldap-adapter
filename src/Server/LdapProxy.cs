@@ -18,6 +18,7 @@ using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.LdapStream;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Core.NameResolving;
+using System.Configuration;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -105,6 +106,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     if (_status == LdapProxyAuthenticationStatus.AuthenticationFailed)
                     {
                         source.Close();
+                        break;
                     }
                 } while (ldapPacket.Data.Length > 0);
             }
@@ -206,6 +208,11 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
 
                         var baseDn = await _ldapService.GetBaseDn(_serverStream, _userName);
+                        if(baseDn == null)
+                        {
+                            throw new Exception("BaseDN was not found. Please verify whether the adpapter can found a defaultNamingContext attribute of the rootDSE" +
+                                                "or provide a ldap-base- parameter in");
+                        }
 
                         if(_clientConfig.LdapIdentityFormat != LdapIdentityFormat.None)
                         {

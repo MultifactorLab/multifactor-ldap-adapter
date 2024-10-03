@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.RegularExpressions;
 
 namespace MultiFactor.Ldap.Adapter.Core
 {
@@ -37,10 +38,18 @@ namespace MultiFactor.Ldap.Adapter.Core
             };
         }
 
+        public static bool IsValidDistinguishedName(string distinguishedName)
+        {
+            // Regular expression for a basic Distinguished Name (DN)
+            string dnPattern = @"^([A-Za-z]+=[^,]+)(,[A-Za-z]+=[^,]+)*$";
+            Regex regex = new Regex(dnPattern);
+            return regex.IsMatch(distinguishedName);
+        }
+
         private static IdentityType GetIdentityType(string userName)
         {
             if (userName.Contains("@")) return IdentityType.UserPrincipalName;
-            if (userName.Contains("CN=", StringComparison.OrdinalIgnoreCase)) return IdentityType.DistinguishedName;
+            if (IsValidDistinguishedName(userName)) return IdentityType.DistinguishedName;
             return IdentityType.sAMAccountName;
         }
 
