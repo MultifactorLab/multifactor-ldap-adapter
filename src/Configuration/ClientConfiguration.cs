@@ -37,7 +37,10 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// </summary>
         public string LdapServer { get; set; }
         
-        public string[] SplittedLdapServers => LdapServer?.Split(new [] { ';' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToArray() ?? new string[0];
+        public string[] SplittedLdapServers => LdapServer
+            ?.Split(new [] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? Array.Empty<string>();
 
         /// <summary>
         /// Bind user container
