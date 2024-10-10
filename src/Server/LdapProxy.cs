@@ -194,8 +194,6 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                     if (bound)  //first factor authenticated
                     {
-                        _logger.Information("User '{user:l}' credential verified successfully at {server}", _transformedUserName, _serverConnection.Client.RemoteEndPoint);
-
                         var bypass = false;
 
                         //apply login transformation users if any
@@ -213,13 +211,17 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName, baseDn);
-                        var profileLoaded = profile != null;
-                        if (!profileLoaded)
+                        
+                        if (profile is null)
                         {
-                            _logger.Error("User '{user:l}' not found. Can not check groups membership", _userName);
+                            _logger.Error("User '{user:l}' not found. This is an unusual situation. Check the adapter settings", _userName);
+                            _status = LdapProxyAuthenticationStatus.AuthenticationFailed;
+                            var responsePacket = ProfileNotFound(packet);
+                            var response = responsePacket.GetBytes();
+                            return (response, response.Length);
                         }
-
-                        if (profileLoaded && _clientConfig.CheckUserGroups())
+                        
+                        if (_clientConfig.CheckUserGroups())
                         {
                             profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
 
@@ -278,9 +280,9 @@ namespace MultiFactor.Ldap.Adapter.Server
                             }
                         }
 
-                        if (profileLoaded && !bypass)
+                        if (!bypass)
                         {
-                            if (LdapService.GetIdentityType(_userName) == Core.IdentityType.DistinguishedName)   //user uses DN as login ;)
+                            if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
                             {
                                 if (profile?.Uid == null)
                                 {
@@ -418,6 +420,13 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             var responsePacket = new LdapPacket(requestPacket.MessageId);
             responsePacket.ChildAttributes.Add(new LdapResultAttribute(LdapOperation.BindResponse, LdapResult.invalidCredentials));
+            return responsePacket;
+        }
+        
+        private LdapPacket ProfileNotFound(LdapPacket requestPacket)
+        {
+            var responsePacket = new LdapPacket(requestPacket.MessageId);
+            responsePacket.ChildAttributes.Add(new LdapResultAttribute(LdapOperation.BindResponse, LdapResult.noSuchObject));
             return responsePacket;
         }
 
