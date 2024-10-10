@@ -220,7 +220,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                             var response = responsePacket.GetBytes();
                             return (response, response.Length);
                         }
-                        
+
                         if (_clientConfig.CheckUserGroups())
                         {
                             profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
