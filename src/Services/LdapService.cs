@@ -46,6 +46,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             var attrList = new LdapAttribute(UniversalDataType.Sequence);
 
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "defaultNamingContext"));
+            attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "namingContexts"));
 
             searchRequest.ChildAttributes.Add(attrList);
 
@@ -60,7 +61,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, baseDn));    //base dn
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)2));    //scope: subtree
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)3));    //aliases: never
-            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)255));     //size limit: 255
+            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, byte.MaxValue - 1)); //size limit: 127
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)60));      //time limit: 60
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Boolean, false));         //typesOnly: false
 
@@ -75,7 +76,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "uid"));
                 eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, id.GetUid()));
             }
-            else 
+            else
             {
                 eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, id.Type.ToString()));
                 eq1.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, id.Name));
@@ -112,7 +113,39 @@ namespace MultiFactor.Ldap.Adapter.Services
             return packet;
         }
 
-        private LdapPacket BuildMemberOfRequest(string userName)
+        private LdapAttribute[] GetADMemberOfFilter(string userName) 
+        {
+            return new[]
+            {
+                new LdapAttribute((byte)LdapFilterChoice.extensibleMatch) 
+                {
+                    ChildAttributes = 
+                    {
+                        new LdapAttribute(1, "1.2.840.113556.1.4.1941"),
+                        new LdapAttribute(2, "member"),
+                        new LdapAttribute(3, userName),
+                        new LdapAttribute(4, (byte)0)
+                    }
+                }
+            };
+        }
+
+        private LdapAttribute[] GetFreeIpaMemberOfFilter(string userName)
+        {
+            return new[] 
+            {
+                new LdapAttribute((byte)LdapFilterChoice.equalityMatch) 
+                {
+                    ChildAttributes = 
+                    {
+                        new LdapAttribute(UniversalDataType.OctetString, "member"),
+                        new LdapAttribute(UniversalDataType.OctetString, userName) 
+                    }
+                }
+           };
+        }
+
+        private LdapPacket BuildMemberOfRequest(string userName, LdapAttribute[] memberFilter)
         {
             var packet = new LdapPacket(_messageId++);
 
@@ -122,18 +155,14 @@ namespace MultiFactor.Ldap.Adapter.Services
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, baseDn));    //base dn
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)2));    //scope: subtree
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)0));    //aliases: never
-            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)255));     //size limit: 255
+            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)0));       //size limit: unset
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)60));      //time limit: 60
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Boolean, true));          //typesOnly: true
 
-            var filter = new LdapAttribute(9);
-
-            filter.ChildAttributes.Add(new LdapAttribute(1, "1.2.840.113556.1.4.1941"));    //AD filter
-            filter.ChildAttributes.Add(new LdapAttribute(2, "member"));
-            filter.ChildAttributes.Add(new LdapAttribute(3, userName));
-            filter.ChildAttributes.Add(new LdapAttribute(4, (byte)0));
-
-            searchRequest.ChildAttributes.Add(filter);
+            foreach (var attribute in memberFilter)
+            {
+                searchRequest.ChildAttributes.Add(attribute);
+            }
 
             packet.ChildAttributes.Add(searchRequest);
 
@@ -260,12 +289,14 @@ namespace MultiFactor.Ldap.Adapter.Services
             while ((packet = await LdapPacket.ParsePacket(ldapConnectedStream)) != null)
             {
                 var searchResult = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.SearchResultEntry);
-                if (searchResult != null)
+                if (searchResult != null && searchResult.ChildAttributes.Count > 1)
                 {
                     var attrs = searchResult.ChildAttributes[1];
-                    var entry = GetEntry(attrs.ChildAttributes[0]);
-
-                    defaultNamingContext = entry.Values.FirstOrDefault();
+                    if(attrs.ChildAttributes.Count > 0)
+                    {
+                        var entry = GetEntry(attrs.ChildAttributes[0]);
+                        defaultNamingContext = entry.Values.FirstOrDefault();
+                    }
                 }
             }
 
@@ -349,7 +380,11 @@ namespace MultiFactor.Ldap.Adapter.Services
                 return profile.MemberOf;
             }
             
-            var request = BuildMemberOfRequest(profile.Dn);
+            var memberOfFilter = string.IsNullOrEmpty(clientConfiguration.LdapBaseDn) 
+                ? GetADMemberOfFilter(profile.Dn)
+                : GetFreeIpaMemberOfFilter(profile.Dn);
+
+            var request = BuildMemberOfRequest(profile.Dn, memberOfFilter);
             var requestData = request.GetBytes();
             await ldapConnectedStream.WriteAsync(requestData, 0, requestData.Length);
 
