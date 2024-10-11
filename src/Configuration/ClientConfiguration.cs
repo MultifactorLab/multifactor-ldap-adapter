@@ -2,6 +2,7 @@
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
+using System;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +36,11 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// LDAP server name or address
         /// </summary>
         public string LdapServer { get; set; }
+        
+        public string[] SplittedLdapServers => LdapServer
+            ?.Split(new [] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? Array.Empty<string>();
 
         /// <summary>
         /// Bind user container
