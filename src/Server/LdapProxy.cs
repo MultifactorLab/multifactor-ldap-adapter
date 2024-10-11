@@ -208,10 +208,10 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
 
                         var baseDn = await _ldapService.GetBaseDn(_serverStream, _userName);
-                        if(baseDn == null)
+                        if(string.IsNullOrWhiteSpace(baseDn))
                         {
-                            throw new Exception("BaseDN was not found. Please verify whether the adpapter can found a defaultNamingContext attribute of the rootDSE" +
-                                                "or provide a ldap-base- parameter in");
+                            throw new Exception("BaseDN was not found. Please verify whether the adapter can found a defaultNamingContext attribute" +
+                                                " of the rootDSE or provide a ldap-base-dn parameter in");
                         }
 
                         if(_clientConfig.LdapIdentityFormat != LdapIdentityFormat.None)
