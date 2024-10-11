@@ -81,7 +81,7 @@ Windows-версия компонента доступна в репозитор
 
 ### Установка зависимостей
 
-Компонент использует среду выполнения .NET 6 runtime, которая является бесплатной, открытой, разрабатывается компанией Microsoft и Open-Source сообществом. Среда выполнения не накладывает никаких ограничений на использование.
+Компонент использует среду выполнения .NET 8 runtime, которая является бесплатной, открытой, разрабатывается компанией Microsoft и Open-Source сообществом. Среда выполнения не накладывает никаких ограничений на использование.
 
 Для установки выполните команды:
 
@@ -89,7 +89,7 @@ Windows-версия компонента доступна в репозитор
 
 ```shell
 $ sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-$ sudo yum install aspnetcore-runtime-6.0
+$ sudo yum install aspnetcore-runtime-8.0
 ```
 <a href="https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-centos" target="_blank">https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-centos</a>
 
@@ -112,7 +112,7 @@ $ sudo dpkg -i packages-microsoft-prod.deb
 $ sudo apt-get update; \
   sudo apt-get install -y apt-transport-https && \
   sudo apt-get update && \
-  sudo apt-get install -y aspnetcore-runtime-6.0
+  sudo apt-get install -y aspnetcore-runtime-8.0
 ```
 <a href="https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-ubuntu" target="_blank">https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-ubuntu</a>
 
@@ -125,7 +125,7 @@ $ sudo dpkg -i packages-microsoft-prod.deb
 $ sudo apt-get update; \
   sudo apt-get install -y apt-transport-https && \
   sudo apt-get update && \
-  sudo apt-get install -y aspnetcore-runtime-6.0
+  sudo apt-get install -y aspnetcore-runtime-8.0
 ```
 <a href="https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-debian" target="_blank">https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-debian</a>
 
@@ -144,7 +144,7 @@ $ sudo chown root:root /etc/apt/sources.list.d/microsoft-prod.list
 $ echo deb https://download.astralinux.ru/astra/current/orel/repository/ orel non-free main contrib | sudo tee -a /etc/apt/sources.list
 
 $ sudo apt-get update
-$ sudo apt-get install dotnet-sdk-6.0
+$ sudo apt-get install dotnet-sdk-8.0
 ```
 Инструкция применима к Astra Linux Common Edition (релиз Орёл) и Special Edition (релиз Смоленск) с выключенным режимом замкнутой программной среды (ЗПС).
 <a href="https://wiki.astralinux.ru/pages/viewpage.action?pageId=41192241#id-Смоленск1.6:УстановкаMS.NetCoreиMSVisualStudioCode-Загрузкаиустановкапакетов.NetCore" target="_blank">https://wiki.astralinux.ru/pages/viewpage.action?pageId=41192241#id-Смоленск1.6:УстановкаMS.NetCoreиMSVisualStudioCode-Загрузкаиустановкапакетов.NetCore</a>
@@ -301,31 +301,31 @@ dotnet --info
 #### CentOS 7
 
 ```shell
-$ sudo yum remove aspnetcore-runtime-6.0
+$ sudo yum remove aspnetcore-runtime-8.0
 ```
 
 #### CentOS 8
 
 ```shell
-$ sudo dnf remove aspnetcore-runtime-6.0
+$ sudo dnf remove aspnetcore-runtime-8.0
 ```
 
 #### Ubuntu 18.04
 
 ```shell
-$ sudo apt-get remove aspnetcore-runtime-6.0
+$ sudo apt-get remove aspnetcore-runtime-8.0
 ```
 
 #### Debian 10
 
 ```shell
-$ sudo apt-get remove aspnetcore-runtime-6.0
+$ sudo apt-get remove aspnetcore-runtime-8.0
 ```
 
 #### Astra Linux Орёл
 
 ```shell
-$ sudo apt-get remove dotnet-sdk-6.0
+$ sudo apt-get remove dotnet-sdk-8.0
 ```
 
 #### Astra Linux Смоленск
