@@ -11,6 +11,7 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Server
@@ -170,7 +171,11 @@ namespace MultiFactor.Ldap.Adapter.Server
             {
                 var serverEndpoint = remoteEndPoint.GetIPEndPoint();
                 using var serverConnection = new TcpClient();
-                await serverConnection.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
+                
+                using var cancellationTokenSource = new CancellationTokenSource();
+                cancellationTokenSource.CancelAfter(clientConfiguration.LdapBindTimeout);
+                
+                await serverConnection.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port, cancellationTokenSource.Token);
                 using var serverStream = await GetServerStream(serverConnection, remoteEndPoint);
                 using var clientStream = await GetClientStream(client);
                 

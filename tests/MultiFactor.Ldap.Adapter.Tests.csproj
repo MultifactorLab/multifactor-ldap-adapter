@@ -25,6 +25,10 @@
     <None Remove="Assets\username-transform-rules-obsolete-test.config" />
     <None Remove="Assets\username-transform-rules-obsolete-with-new-test.config" />
     <None Remove="Assets\username-transform-rules-wrong-test.config" />
+    <None Remove="Assets\root-ldap-bind-timeout.config" />
+    <None Remove="Assets\root-invalid-ldap-bind-timeout.config" />
+    <None Remove="Assets\root-no-ldap-bind-timeout.config"/>
+    <None Remove="Assets\root-zero-ldap-bind-timeout.config"/>
   </ItemGroup>
 
   <ItemGroup>
@@ -108,6 +112,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\username-transform-rules-empty-test.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\root-ldap-bind-timeout.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\root-invalid-ldap-bind-timeout.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\root-no-ldap-bind-timeout.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\root-zero-ldap-bind-timeout.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
