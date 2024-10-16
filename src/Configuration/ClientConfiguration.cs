@@ -42,6 +42,8 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray() ?? Array.Empty<string>();
 
+        public TimeSpan LdapBindTimeout { get; set; } = new TimeSpan(0, 0, 30);
+        
         /// <summary>
         /// Bind user container
         /// </summary>
