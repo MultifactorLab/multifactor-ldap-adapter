@@ -11,6 +11,7 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MultiFactor.Ldap.Adapter.Server
@@ -116,7 +117,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                 try
                 {
                     var remoteClient = await _server.AcceptTcpClientAsync();
-                    var task = Task.Factory.StartNew(async () => await HandleClint(remoteClient), TaskCreationOptions.LongRunning);
+                    var task = Task.Factory.StartNew(async () => await HandleClient(remoteClient), TaskCreationOptions.LongRunning);
                 }
                 catch (ObjectDisposedException) //may be safetly ignored
                 {
@@ -129,7 +130,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
         }
 
-        private async Task HandleClint(TcpClient client)
+        private async Task HandleClient(TcpClient client)
         {
             client.NoDelay = true;
 
@@ -143,24 +144,17 @@ namespace MultiFactor.Ldap.Adapter.Server
                 return;
             }
 
-            var remoteEndPoint = ParseServerEndpoint(clientConfiguration.LdapServer.ToLower());
-
             try
             {
-                var serverEndpoint = remoteEndPoint.GetIPEndPoint();
-
-                using var serverConnection = new TcpClient();
-                await serverConnection.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
-
-                using var serverStream = await GetServerStream(serverConnection, remoteEndPoint);
-
-                using var clientStream = await GetClientStream(client);
-                var proxy = _proxyFactory.CreateProxy(client, clientStream, serverConnection, serverStream, clientConfiguration);
-                await proxy.Start();
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, $"Error while connecting client '{clientConfiguration.Name}' to {remoteEndPoint.Host}:{remoteEndPoint.Port}");
+                foreach (var ldapServer in clientConfiguration.SplittedLdapServers)
+                {
+                    var remoteEndPoint = ParseServerEndpoint(ldapServer.ToLower());
+                    var isSuccessful = await ProcessRemoteEndPoint(remoteEndPoint, client, clientConfiguration);
+                    if (isSuccessful)
+                    {
+                        return;
+                    }
+                }
             }
             finally
             {
@@ -169,6 +163,38 @@ namespace MultiFactor.Ldap.Adapter.Server
                     client.Close();
                 }
             }
+        }
+
+        private async Task<bool> ProcessRemoteEndPoint(RemoteEndPoint remoteEndPoint, TcpClient client, ClientConfiguration clientConfiguration)
+        {
+            try
+            {
+                var serverEndpoint = remoteEndPoint.GetIPEndPoint();
+                using var serverConnection = new TcpClient();
+                
+                using var cancellationTokenSource = new CancellationTokenSource();
+                cancellationTokenSource.CancelAfter(clientConfiguration.LdapBindTimeout);
+                
+                await serverConnection.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port, cancellationTokenSource.Token);
+                using var serverStream = await GetServerStream(serverConnection, remoteEndPoint);
+                using var clientStream = await GetClientStream(client);
+                
+                var proxy = _proxyFactory.CreateProxy(
+                    client,
+                    clientStream, 
+                    serverConnection,
+                    serverStream,
+                    clientConfiguration);
+                
+                await proxy.ProcessDataExchange();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, $"Error while connecting client '{clientConfiguration.Name}' to {remoteEndPoint.Host}:{remoteEndPoint.Port}");
+            }
+
+            return false;
         }
 
         private static RemoteEndPoint ParseServerEndpoint(string server)
