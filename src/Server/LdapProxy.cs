@@ -18,6 +18,7 @@ using MultiFactor.Ldap.Adapter.Core.Requests;
 using MultiFactor.Ldap.Adapter.Server.LdapStream;
 using MultiFactor.Ldap.Adapter.Core.NameResolve;
 using MultiFactor.Ldap.Adapter.Core.NameResolving;
+using System.Configuration;
 
 namespace MultiFactor.Ldap.Adapter.Server
 {
@@ -61,7 +62,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _nameResolverService = nameResolverService;
         }
 
-        public async Task Start()
+        public async Task ProcessDataExchange()
         {
             var from = _clientConnection.Client.RemoteEndPoint.ToString();
             var to = _serverConnection.Client.RemoteEndPoint.ToString();
@@ -105,6 +106,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                     if (_status == LdapProxyAuthenticationStatus.AuthenticationFailed)
                     {
                         source.Close();
+                        break;
                     }
                 } while (ldapPacket.Data.Length > 0);
             }
@@ -194,8 +196,6 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                     if (bound)  //first factor authenticated
                     {
-                        _logger.Information("User '{user:l}' credential verified successfully at {server}", _transformedUserName, _serverConnection.Client.RemoteEndPoint);
-
                         var bypass = false;
 
                         //apply login transformation users if any
@@ -206,6 +206,11 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
 
                         var baseDn = await _ldapService.GetBaseDn(_serverStream, _userName);
+                        if(string.IsNullOrWhiteSpace(baseDn))
+                        {
+                            throw new Exception("BaseDN was not found. Please verify whether the adapter can found a defaultNamingContext attribute" +
+                                                " of the rootDSE or provide a ldap-base-dn parameter in");
+                        }
 
                         if(_clientConfig.LdapIdentityFormat != LdapIdentityFormat.None)
                         {
@@ -213,13 +218,17 @@ namespace MultiFactor.Ldap.Adapter.Server
                         }
 
                         var profile = await _ldapService.LoadProfile(_serverStream, _userName, baseDn);
-                        var profileLoaded = profile != null;
-                        if (!profileLoaded)
+                        
+                        if (profile is null)
                         {
-                            _logger.Error("User '{user:l}' not found. Can not check groups membership", _userName);
+                            _logger.Error("User '{user:l}' not found. This is an unusual situation. Check the adapter settings", _userName);
+                            _status = LdapProxyAuthenticationStatus.AuthenticationFailed;
+                            var responsePacket = ProfileNotFound(packet);
+                            var response = responsePacket.GetBytes();
+                            return (response, response.Length);
                         }
 
-                        if (profileLoaded && _clientConfig.CheckUserGroups())
+                        if (_clientConfig.CheckUserGroups())
                         {
                             profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
 
@@ -278,9 +287,9 @@ namespace MultiFactor.Ldap.Adapter.Server
                             }
                         }
 
-                        if (profileLoaded && !bypass)
+                        if (!bypass)
                         {
-                            if (LdapService.GetIdentityType(_userName) == Core.IdentityType.DistinguishedName)   //user uses DN as login ;)
+                            if (LdapService.GetIdentityType(_userName) == IdentityType.DistinguishedName)   //user uses DN as login ;)
                             {
                                 if (profile?.Uid == null)
                                 {
@@ -418,6 +427,13 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             var responsePacket = new LdapPacket(requestPacket.MessageId);
             responsePacket.ChildAttributes.Add(new LdapResultAttribute(LdapOperation.BindResponse, LdapResult.invalidCredentials));
+            return responsePacket;
+        }
+        
+        private LdapPacket ProfileNotFound(LdapPacket requestPacket)
+        {
+            var responsePacket = new LdapPacket(requestPacket.MessageId);
+            responsePacket.ChildAttributes.Add(new LdapResultAttribute(LdapOperation.BindResponse, LdapResult.noSuchObject));
             return responsePacket;
         }
 

@@ -137,5 +137,40 @@ namespace tests
             var ex = Assert.Throws<Exception>(configuration);
             Assert.Contains("element has a wrong value", ex.Message);
         }
+
+        [Fact]
+        public void LdapBindTimeout_ShouldSetLdapBindTimeout()
+        {
+            var configuration = TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "root-ldap-bind-timeout.config"), new string[] {}
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            Assert.NotNull(configuration);
+            var client = configuration.GetClient(IPAddress.Parse("0.0.0.0"));
+            Assert.Equal(TimeSpan.FromSeconds(5), client.LdapBindTimeout);
+        }
+        
+        [Theory]
+        [InlineData("root-invalid-ldap-bind-timeout.config")]
+        [InlineData("root-zero-ldap-bind-timeout.config")]
+        public void InvalidLdapBindTimeout_ShouldSetDefault(string configPath)
+        {
+            var configuration = TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, configPath), new string[] {}
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            Assert.NotNull(configuration);
+            var client = configuration.GetClient(IPAddress.Parse("0.0.0.0"));
+            Assert.Equal(TimeSpan.FromSeconds(30), client.LdapBindTimeout);
+        }
+        
+        [Fact]
+        public void LdapBindTimeoutIsNotSpecified_ShouldSetDefault()
+        {
+            var configuration = TestHostFactory.CreateHost(
+                TestEnvironment.GetAssetPath(TestAssetLocation.RootDirectory, "root-no-ldap-bind-timeout.config"), new string[] {}
+            ).Services.GetRequiredService<ServiceConfiguration>();
+            Assert.NotNull(configuration);
+            var client = configuration.GetClient(IPAddress.Parse("0.0.0.0"));
+            Assert.Equal(TimeSpan.FromSeconds(30), client.LdapBindTimeout);
+        }
     }
 }
