@@ -77,7 +77,7 @@ Use LDAP Adapter Component to implement the following scenarios:
 
 ### Dependencies Installation
 
-The component uses the .NET 6 runtime environment, which is free, open-source, developed by Microsoft and the open-source community. The runtime environment does not impose any restrictions on its use.
+The component uses the .NET 8 runtime environment, which is free, open-source, developed by Microsoft and the open-source community. The runtime environment does not impose any restrictions on its use.
 
 To install, run the commands:
 
@@ -85,7 +85,7 @@ To install, run the commands:
 
 ```shell
 $ sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-$ sudo yum install aspnetcore-runtime-6.0
+$ sudo yum install aspnetcore-runtime-8.0
 ```
 <a href="https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-centos" target="_blank">https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-centos</a>
 
@@ -109,7 +109,7 @@ $ sudo dpkg -i packages-microsoft-prod.deb
 $ sudo apt-get update; \
   sudo apt-get install -y apt-transport-https && \
   sudo apt-get update && \
-  sudo apt-get install -y aspnetcore-runtime-6.0
+  sudo apt-get install -y aspnetcore-runtime-8.0
 ```
 
 <a href="https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-ubuntu" target="_blank">https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-ubuntu</a>
@@ -123,7 +123,7 @@ $ sudo dpkg -i packages-microsoft-prod.deb
 $ sudo apt-get update; \
   sudo apt-get install -y apt-transport-https && \
   sudo apt-get update && \
-  sudo apt-get install -y aspnetcore-runtime-6.0
+  sudo apt-get install -y aspnetcore-runtime-8.0
 ```
 
 <a href="https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-debian" target="_blank">https://docs.microsoft.com/ru-ru/dotnet/core/install/linux-debian</a>
@@ -261,25 +261,25 @@ Next, run the commands:
 #### CentOS 7
 
 ```shell
-$ sudo yum remove aspnetcore-runtime-6.0
+$ sudo yum remove aspnetcore-runtime-8.0
 ```
 
 #### CentOS 8
 
 ```shell
-$ sudo dnf remove aspnetcore-runtime-6.0
+$ sudo dnf remove aspnetcore-runtime-8.0
 ```
 
 #### Ubuntu 18.04
 
 ```shell
-$ sudo apt-get remove aspnetcore-runtime-6.0
+$ sudo apt-get remove aspnetcore-runtime-8.0
 ```
 
 #### Debian 10
 
 ```shell
-$ sudo apt-get remove aspnetcore-runtime-6.0
+$ sudo apt-get remove aspnetcore-runtime-8.0
 ```
 
 ### Uninstall Component
