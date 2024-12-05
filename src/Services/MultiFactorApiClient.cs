@@ -117,6 +117,13 @@ namespace MultiFactor.Ldap.Adapter.Services
                 };
                 message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
                 var res = await httpClient.SendAsync(message);
+      
+                if (res.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    _logger.Warning("Got unsuccessful response from API: {@response}", res.ReasonPhrase);
+                    return new MultiFactorAccessRequest() { Status = "Denied", ReplyMessage = "Too many requests"};
+                }
+
                 var jsonResponse = await res.Content.ReadAsStringAsync();
                 var response = JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse, _serialazerOptions);
 
