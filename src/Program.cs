@@ -34,15 +34,10 @@ namespace MultiFactor.Ldap.Adapter
             {
                 var errorMessage = FlattenException(ex);
 
-                if (Log.Logger != null)
-                {
-                    Log.Logger.Error($"Unable to start: {errorMessage}");
-                }
-                else
-                {
-                    Console.WriteLine($"Unable to start: {errorMessage}");
-                }
-
+                StartupLogger.Error(ex, "Unable to start: {Message:l}", errorMessage);
+            }
+            finally
+            {
                 host?.StopAsync();
             }
         }
