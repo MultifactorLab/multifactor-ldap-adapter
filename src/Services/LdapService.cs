@@ -106,6 +106,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "UserPrincipalName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "DisplayName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "mail"));
+            attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "email"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "memberOf"));
 
             searchRequest.ChildAttributes.Add(attrList);
@@ -359,6 +360,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                             case "userPrincipalName":
                                 profile.Upn = entry.Values.FirstOrDefault();
                                 break;
+                            case "email":
                             case "mail":
                                 profile.Email = entry.Values.FirstOrDefault();
                                 break;
