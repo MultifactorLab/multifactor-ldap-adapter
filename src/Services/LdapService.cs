@@ -106,6 +106,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "UserPrincipalName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "DisplayName"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "mail"));
+            attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "email"));
             attrList.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, "memberOf"));
 
             searchRequest.ChildAttributes.Add(attrList);
@@ -327,6 +328,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             await ldapConnectedStream.WriteAsync(requestData, 0, requestData.Length);
 
             LdapProfile profile = null;
+            var mailEntries = new List<LdapSearchResultEntry>();
             LdapPacket packet;
 
             while ((packet = await LdapPacket.ParsePacket(ldapConnectedStream)) != null)
@@ -335,7 +337,6 @@ namespace MultiFactor.Ldap.Adapter.Services
                 if (searchResult != null)
                 {
                     profile ??= new LdapProfile();
-
                     var dn = searchResult.ChildAttributes[0].GetValue<string>();
                     var attrs = searchResult.ChildAttributes[1];
 
@@ -360,7 +361,10 @@ namespace MultiFactor.Ldap.Adapter.Services
                                 profile.Upn = entry.Values.FirstOrDefault();
                                 break;
                             case "mail":
-                                profile.Email = entry.Values.FirstOrDefault();
+                                mailEntries.Add(entry);
+                                break;
+                            case "email":
+                                mailEntries.Add(entry);
                                 break;
                             case "memberOf":
                                 profile.MemberOf.AddRange(entry.Values.Select(v => DnToCn(v)));
@@ -368,6 +372,11 @@ namespace MultiFactor.Ldap.Adapter.Services
                         }
                     }
                 }
+            }
+
+            if (profile != null)
+            {
+                profile.Email = GetMail(mailEntries);
             }
 
             return profile;
@@ -524,6 +533,12 @@ namespace MultiFactor.Ldap.Adapter.Services
             }
 
             return ret;
+        }
+
+        private static string GetMail(List<LdapSearchResultEntry> entries)
+        {
+            return entries.FirstOrDefault(x => x.Name == "mail")?.Values.FirstOrDefault()
+                   ?? entries.FirstOrDefault(x => x.Name == "email")?.Values.FirstOrDefault();
         }
 
         private class LdapSearchResultEntry
