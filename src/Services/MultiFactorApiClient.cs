@@ -1,16 +1,19 @@
 ﻿//Copyright(c) 2021 MultiFactor
-//Please see licence at 
+//Please see licence at
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Services.Caching;
 using Serilog;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Polly;
+using Polly.Wrap;
 
 namespace MultiFactor.Ldap.Adapter.Services
 {
@@ -63,13 +66,13 @@ namespace MultiFactor.Ldap.Adapter.Services
                 return true;
             }
 
-            var url = _configuration.ApiUrl + "/access/requests/la";
+            var urls = _configuration.ApiUrls.Select(url => url + "/access/requests/la").ToArray();
             var payload = new
             {
                 Identity = connectedClient.Username,
             };
 
-            var response = await SendRequest(connectedClient.ClientConfiguration, url, payload);
+            var response = await SendRequest(connectedClient.ClientConfiguration, urls, payload);
 
             if (response == null)
             {
@@ -78,7 +81,7 @@ namespace MultiFactor.Ldap.Adapter.Services
 
             if (response.Granted && !response.Bypassed)
             {
-                _logger.Information("Second factor for user '{user:l}' verified successfully. Authenticator '{authenticator:l}', account '{account:l}'", 
+                _logger.Information("Second factor for user '{user:l}' verified successfully. Authenticator '{authenticator:l}', account '{account:l}'",
                     connectedClient.Username, response?.Authenticator, response?.Account);
                 _clientCache.SetCache(connectedClient.Username, connectedClient.ClientConfiguration);
             }
@@ -87,14 +90,14 @@ namespace MultiFactor.Ldap.Adapter.Services
             {
                 var reason = response?.ReplyMessage;
                 var phone = response?.Phone;
-                _logger.Warning("Second factor verification for user '{user:l}' failed with reason='{reason:l}'. User phone {phone:l}", 
+                _logger.Warning("Second factor verification for user '{user:l}' failed with reason='{reason:l}'. User phone {phone:l}",
                     connectedClient.Username, reason, phone);
             }
 
             return response.Granted;
         }
 
-        private async Task<MultiFactorAccessRequest> SendRequest(ClientConfiguration clientConfig, string url, object payload)
+        private async Task<MultiFactorAccessRequest> SendRequest(ClientConfiguration clientConfig, string[] urls, object payload)
         {
             try
             {
@@ -110,18 +113,23 @@ namespace MultiFactor.Ldap.Adapter.Services
                 var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
                 var httpClient = _httpClientFactory.CreateClient(nameof(MultiFactorApiClient));
 
-                StringContent jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
-                HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, url)
+                var fallbackUrls = urls.Skip(1).ToArray();
+                var retryStrategy = ConfigureRetryStrategy(httpClient, json, auth, fallbackUrls);
+                var res = await retryStrategy.ExecuteAsync(async () =>
                 {
-                    Content = jsonContent
-                };
-                message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
-                var res = await httpClient.SendAsync(message);
-      
+                    var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
+                    var message = new HttpRequestMessage(HttpMethod.Post, urls[0])
+                    {
+                        Content = jsonContent
+                    };
+                    message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
+                    return await httpClient.SendAsync(message);
+                });
+
                 if (res.StatusCode == HttpStatusCode.TooManyRequests)
                 {
                     _logger.Warning("Got unsuccessful response from API: {@response}", res.ReasonPhrase);
-                    return new MultiFactorAccessRequest() { Status = "Denied", ReplyMessage = "Too many requests"};
+                    return new MultiFactorAccessRequest() { Status = "Denied", ReplyMessage = "Too many requests" };
                 }
 
                 var jsonResponse = await res.Content.ReadAsStringAsync();
@@ -138,7 +146,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             }
             catch (TaskCanceledException tce)
             {
-                _logger.Error(tce, $"Multifactor API host unreachable {url}: timeout");
+                _logger.Error(tce, $"Multifactor API host unreachable {string.Join(';', urls)}: timeout");
 
                 if (clientConfig.BypassSecondFactorWhenApiUnreachable)
                 {
@@ -150,7 +158,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"Multifactor API host unreachable {url}: {ex.Message}");
+                _logger.Error(ex, $"Multifactor API host unreachable {string.Join(';', urls)}: {ex.Message}");
 
                 if (clientConfig.BypassSecondFactorWhenApiUnreachable)
                 {
@@ -160,6 +168,59 @@ namespace MultiFactor.Ldap.Adapter.Services
 
                 return null;
             }
+        }
+
+        private AsyncPolicyWrap<HttpResponseMessage> ConfigureRetryStrategy(
+            HttpClient httpClient,
+            string json,
+            string auth,
+            string[] fallbackUrls,
+            int maxRetries = 2,
+            int timoutSeconds = 3)
+        {
+            var timeoutPolicy = Policy
+                .TimeoutAsync<HttpResponseMessage>(timoutSeconds,
+                    (context, timeSpan, task) =>
+                    {
+                        _logger.Warning($"The request to the main Multifactor API was timed out: {timeSpan.Seconds} seconds.");
+                        return Task.CompletedTask;
+                    });
+
+            var retryPolicy = Policy
+                .Handle<HttpRequestException>()
+                .WaitAndRetryAsync(maxRetries,
+                    attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
+                    (exception, timeSpan, attempt, context) =>
+                    {
+                        _logger.Warning($"The request to the main Multifactor API failed. Attempt number is {attempt}/{maxRetries}. Retrying in {timeSpan.Seconds} seconds...");
+                    });
+
+            var fallbackPolicy = Policy<HttpResponseMessage>
+                .Handle<HttpRequestException>()
+                .FallbackAsync(async cancellationToken =>
+                {
+                    foreach (var fallbackUrl in fallbackUrls)
+                    {
+                        try
+                        {
+                            var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");;
+                            var message = new HttpRequestMessage(HttpMethod.Post, fallbackUrl) { Content = jsonContent };
+                            message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
+                            _logger.Warning($"The main Multifactor API is unreachable. Trying to fallback: {fallbackUrl}...");
+                            return await httpClient.SendAsync(message, cancellationToken);
+                        }
+                        catch (HttpRequestException)
+                        {
+                            _logger.Warning($"Fallback URL {fallbackUrl} is unreachable.");
+                        }
+                    }
+
+                    throw new HttpRequestException("All the Multifactor APIs is unreachable.");
+                });
+
+            return fallbackPolicy
+                .WrapAsync(retryPolicy)
+                .WrapAsync(timeoutPolicy);
         }
     }
 
@@ -190,6 +251,6 @@ namespace MultiFactor.Ldap.Adapter.Services
             {
                 return new MultiFactorAccessRequest { Status = "Granted", Bypassed = true };
             }
-        } 
+        }
     }
 }
