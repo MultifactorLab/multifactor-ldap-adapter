@@ -112,37 +112,47 @@ namespace MultiFactor.Ldap.Adapter.Services
                 //basic authorization
                 var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
                 var httpClient = _httpClientFactory.CreateClient(nameof(MultiFactorApiClient));
-
-                var fallbackUrls = urls.Skip(1).ToArray();
-                var retryStrategy = ConfigureRetryStrategy(httpClient, json, auth, fallbackUrls);
-                var res = await retryStrategy.ExecuteAsync(async () =>
+                foreach (var url in urls)
                 {
                     var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
-                    var message = new HttpRequestMessage(HttpMethod.Post, urls[0])
+                    var message = new HttpRequestMessage(HttpMethod.Post, url)
                     {
                         Content = jsonContent
                     };
                     message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
-                    return await httpClient.SendAsync(message);
-                });
+                    HttpResponseMessage res;
+                    try
+                    {
+                        res = await httpClient.SendAsync(message);
+                    }
+                    catch (HttpRequestException exception)
+                    {
+                        _logger.Warning($"Failed to send request to API '{url}': {exception.Message}");
+                        continue;
+                    }
 
-                if (res.StatusCode == HttpStatusCode.TooManyRequests)
-                {
-                    _logger.Warning("Got unsuccessful response from API: {@response}", res.ReasonPhrase);
-                    return new MultiFactorAccessRequest() { Status = "Denied", ReplyMessage = "Too many requests" };
+                    if (res.StatusCode == HttpStatusCode.TooManyRequests)
+                    {
+                        _logger.Warning("Got unsuccessful response from API: {@response}", res.ReasonPhrase);
+                        return new MultiFactorAccessRequest() { Status = "Denied", ReplyMessage = "Too many requests" };
+                    }
+
+                    var jsonResponse = await res.Content.ReadAsStringAsync();
+                    var response =
+                        JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse,
+                            _serialazerOptions);
+
+                    _logger.Debug("Received response from API: {@response}", response);
+
+                    if (!response.Success)
+                    {
+                        _logger.Warning("Got unsuccessful response from API: {@response}", response);
+                    }
+
+                    return response.Model;
                 }
 
-                var jsonResponse = await res.Content.ReadAsStringAsync();
-                var response = JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse, _serialazerOptions);
-
-                _logger.Debug("Received response from API: {@response}", response);
-
-                if (!response.Success)
-                {
-                    _logger.Warning("Got unsuccessful response from API: {@response}", response);
-                }
-
-                return response.Model;
+                throw new TaskCanceledException("Failed to send request to API.");
             }
             catch (TaskCanceledException tce)
             {
@@ -168,59 +178,6 @@ namespace MultiFactor.Ldap.Adapter.Services
 
                 return null;
             }
-        }
-
-        private AsyncPolicyWrap<HttpResponseMessage> ConfigureRetryStrategy(
-            HttpClient httpClient,
-            string json,
-            string auth,
-            string[] fallbackUrls,
-            int maxRetries = 2,
-            int timoutSeconds = 3)
-        {
-            var timeoutPolicy = Policy
-                .TimeoutAsync<HttpResponseMessage>(timoutSeconds,
-                    (context, timeSpan, task) =>
-                    {
-                        _logger.Warning($"The request to the main Multifactor API was timed out: {timeSpan.Seconds} seconds.");
-                        return Task.CompletedTask;
-                    });
-
-            var retryPolicy = Policy
-                .Handle<HttpRequestException>()
-                .WaitAndRetryAsync(maxRetries,
-                    attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
-                    (exception, timeSpan, attempt, context) =>
-                    {
-                        _logger.Warning($"The request to the main Multifactor API failed. Attempt number is {attempt}/{maxRetries}. Retrying in {timeSpan.Seconds} seconds...");
-                    });
-
-            var fallbackPolicy = Policy<HttpResponseMessage>
-                .Handle<HttpRequestException>()
-                .FallbackAsync(async cancellationToken =>
-                {
-                    foreach (var fallbackUrl in fallbackUrls)
-                    {
-                        try
-                        {
-                            var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");;
-                            var message = new HttpRequestMessage(HttpMethod.Post, fallbackUrl) { Content = jsonContent };
-                            message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
-                            _logger.Warning($"The main Multifactor API is unreachable. Trying to fallback: {fallbackUrl}...");
-                            return await httpClient.SendAsync(message, cancellationToken);
-                        }
-                        catch (HttpRequestException)
-                        {
-                            _logger.Warning($"Fallback URL {fallbackUrl} is unreachable.");
-                        }
-                    }
-
-                    throw new HttpRequestException("All the Multifactor APIs is unreachable.");
-                });
-
-            return fallbackPolicy
-                .WrapAsync(retryPolicy)
-                .WrapAsync(timeoutPolicy);
         }
     }
 
