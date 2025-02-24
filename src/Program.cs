@@ -11,11 +11,7 @@ using MultiFactor.Ldap.Adapter.Services.Caching;
 using Serilog;
 using Serilog.Core;
 using System;
-using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
-using Polly;
-using Polly.Wrap;
 
 namespace MultiFactor.Ldap.Adapter
 {
@@ -71,12 +67,6 @@ namespace MultiFactor.Ldap.Adapter
             services.AddSingleton(prov => new RandomWaiter(prov.GetRequiredService<ServiceConfiguration>().InvalidCredentialDelay));
             services.AddSingleton<MultiFactorApiClient>();
             services.AddHttpClientWithProxy();
-            services.AddHttpClient(nameof(MultiFactorApiClient))
-                .AddPolicyHandler((provider, request) =>
-                {
-                    var logger = provider.GetRequiredService<ILogger>();
-                    return ConfigureRetryStrategy(logger);
-                });
             services.AddSingleton<LdapProxyFactory>();
             services.AddSingleton<AuthenticatedClientCache>();
             services.AddMemoryCache();
@@ -107,30 +97,6 @@ namespace MultiFactor.Ldap.Adapter
             }
 
             return stringBuilder.ToString();
-        }
-
-        private static AsyncPolicyWrap<HttpResponseMessage> ConfigureRetryStrategy(ILogger logger)
-        {
-            const int maxRetries = 2;
-            const int timeoutSeconds = 3;
-            var timeoutPolicy = Policy
-                .TimeoutAsync<HttpResponseMessage>(timeoutSeconds,
-                    (context, timeSpan, task) =>
-                    {
-                        logger.Warning($"The request to the main Multifactor API was timed out: {timeSpan.Seconds} seconds.");
-                        return Task.CompletedTask;
-                    });
-
-            var retryPolicy = Policy
-                .Handle<HttpRequestException>()
-                .WaitAndRetryAsync(maxRetries,
-                    attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
-                    (exception, timeSpan, attempt, context) =>
-                    {
-                        logger.Warning($"The request to the Multifactor API failed: {exception.Message}. Attempt number is {attempt}/{maxRetries}. Retrying in {timeSpan.Seconds} seconds...");
-                    });
-
-            return retryPolicy.WrapAsync(timeoutPolicy);
         }
     }
 }

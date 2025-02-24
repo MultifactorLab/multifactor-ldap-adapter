@@ -12,8 +12,6 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Polly;
-using Polly.Wrap;
 
 namespace MultiFactor.Ldap.Adapter.Services
 {
@@ -66,13 +64,12 @@ namespace MultiFactor.Ldap.Adapter.Services
                 return true;
             }
 
-            var urls = _configuration.ApiUrls.Select(url => url + "/access/requests/la").ToArray();
             var payload = new
             {
                 Identity = connectedClient.Username,
             };
 
-            var response = await SendRequest(connectedClient.ClientConfiguration, urls, payload);
+            var response = await SendRequest(connectedClient.ClientConfiguration, _configuration.ApiUrls, payload);
 
             if (response == null)
             {
@@ -97,50 +94,37 @@ namespace MultiFactor.Ldap.Adapter.Services
             return response.Granted;
         }
 
-        private async Task<MultiFactorAccessRequest> SendRequest(ClientConfiguration clientConfig, string[] urls, object payload)
+        private async Task<MultiFactorAccessRequest> SendRequest(ClientConfiguration clientConfig, string[] baseUrls, object payload)
         {
-            try
+            //make sure we can communicate securely
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.DefaultConnectionLimit = 100;
+
+            var json = JsonSerializer.Serialize(payload, _serialazerOptions);
+
+            _logger.Debug($"Sending request to API: {json}");
+
+            //basic authorization
+            var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
+            var httpClient = _httpClientFactory.CreateClient(nameof(MultiFactorApiClient));
+
+            foreach (var url in baseUrls.Select(baseUrl => $"{baseUrl}/access/requests/la"))
             {
-                //make sure we can communicate securely
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                ServicePointManager.DefaultConnectionLimit = 100;
-
-                var json = JsonSerializer.Serialize(payload, _serialazerOptions);
-
-                _logger.Debug($"Sending request to API: {json}");
-
-                //basic authorization
-                var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
-                var httpClient = _httpClientFactory.CreateClient(nameof(MultiFactorApiClient));
-                foreach (var url in urls)
+                try
                 {
-                    var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
-                    var message = new HttpRequestMessage(HttpMethod.Post, url)
-                    {
-                        Content = jsonContent
-                    };
-                    message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
-                    HttpResponseMessage res;
-                    try
-                    {
-                        res = await httpClient.SendAsync(message);
-                    }
-                    catch (HttpRequestException exception)
-                    {
-                        _logger.Warning($"Failed to send request to API '{url}': {exception.Message}");
+                    var message = PrepareHttpRequestMessage(json, url, auth);
+                    var res = await TrySendRequest(httpClient, message);
+                    if (res == null)
                         continue;
-                    }
 
                     if (res.StatusCode == HttpStatusCode.TooManyRequests)
                     {
                         _logger.Warning("Got unsuccessful response from API: {@response}", res.ReasonPhrase);
-                        return new MultiFactorAccessRequest() { Status = "Denied", ReplyMessage = "Too many requests" };
+                        return new MultiFactorAccessRequest { Status = "Denied", ReplyMessage = "Too many requests" };
                     }
 
                     var jsonResponse = await res.Content.ReadAsStringAsync();
-                    var response =
-                        JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse,
-                            _serialazerOptions);
+                    var response = JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse, _serialazerOptions);
 
                     _logger.Debug("Received response from API: {@response}", response);
 
@@ -150,34 +134,46 @@ namespace MultiFactor.Ldap.Adapter.Services
                     }
 
                     return response.Model;
+
                 }
-
-                throw new TaskCanceledException("Failed to send request to API.");
-            }
-            catch (TaskCanceledException tce)
-            {
-                _logger.Error(tce, $"Multifactor API host unreachable {string.Join(';', urls)}: timeout");
-
-                if (clientConfig.BypassSecondFactorWhenApiUnreachable)
+                catch (Exception ex)
                 {
-                    _logger.Warning("Bypass second factor");
-                    return MultiFactorAccessRequest.Bypass;
+                    _logger.Error(ex, $"Multifactor API host unreachable {url}: {ex.Message}.");
                 }
+            }
 
+            _logger.Error($"Multifactor API host unreachable {string.Join(';', baseUrls)}: replicas exhausted.");
+
+            if (clientConfig.BypassSecondFactorWhenApiUnreachable)
+            {
+                _logger.Warning("Bypass second factor");
+                return MultiFactorAccessRequest.Bypass;
+            }
+            return null;
+        }
+
+        private async Task<HttpResponseMessage> TrySendRequest(HttpClient httpClient, HttpRequestMessage message)
+        {
+            try
+            {
+                return await httpClient.SendAsync(message);
+            }
+            catch (HttpRequestException exception)
+            {
+                _logger.Warning($"Failed to send request to API '{message.RequestUri}': {exception.Message}");
                 return null;
             }
-            catch (Exception ex)
+        }
+
+        private static HttpRequestMessage PrepareHttpRequestMessage(string json, string url, string auth)
+        {
+            var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
+            var message = new HttpRequestMessage(HttpMethod.Post, url)
             {
-                _logger.Error(ex, $"Multifactor API host unreachable {string.Join(';', urls)}: {ex.Message}");
-
-                if (clientConfig.BypassSecondFactorWhenApiUnreachable)
-                {
-                    _logger.Warning("Bypass second factor");
-                    return MultiFactorAccessRequest.Bypass;
-                }
-
-                return null;
-            }
+                Content = jsonContent
+            };
+            message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
+            return message;
         }
     }
 
