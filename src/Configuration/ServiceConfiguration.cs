@@ -127,7 +127,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 throw new Exception("Configuration error: 'logging-level' element not found");
             }
 
-            ApiUrls = apiUrlSetting.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            ApiUrls = apiUrlSetting.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToArray();
             ApiTimeout = apiTimeout;
             ApiProxy = apiProxySetting;
             LogLevel = logLevelSetting;

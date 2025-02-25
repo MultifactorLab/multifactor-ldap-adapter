@@ -102,14 +102,15 @@ namespace MultiFactor.Ldap.Adapter.Services
 
             var json = JsonSerializer.Serialize(payload, _serialazerOptions);
 
-            _logger.Debug($"Sending request to API: {json}");
+            _logger.Debug("Sending request to API: {Body}.", json);
 
             //basic authorization
-            var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(clientConfig.MultifactorApiKey + ":" + clientConfig.MultifactorApiSecret));
+            var auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{clientConfig.MultifactorApiKey}:{clientConfig.MultifactorApiSecret}"));
             var httpClient = _httpClientFactory.CreateClient(nameof(MultiFactorApiClient));
 
             foreach (var url in baseUrls.Select(baseUrl => $"{baseUrl}/access/requests/la"))
             {
+                _logger.Information("Sending request to API '{ApiUrl:l}'.", url);
                 try
                 {
                     var message = PrepareHttpRequestMessage(json, url, auth);
@@ -119,14 +120,14 @@ namespace MultiFactor.Ldap.Adapter.Services
 
                     if (res.StatusCode == HttpStatusCode.TooManyRequests)
                     {
-                        _logger.Warning("Got unsuccessful response from API: {@response}", res.ReasonPhrase);
+                        _logger.Warning("Got unsuccessful response from API '{ApiUrl:l}': {@response}", url, res.ReasonPhrase);
                         return new MultiFactorAccessRequest { Status = "Denied", ReplyMessage = "Too many requests" };
                     }
 
                     var jsonResponse = await res.Content.ReadAsStringAsync();
                     var response = JsonSerializer.Deserialize<MultiFactorApiResponse<MultiFactorAccessRequest>>(jsonResponse, _serialazerOptions);
 
-                    _logger.Debug("Received response from API: {@response}", response);
+                    _logger.Debug("Received response from API '{ApiUrl:l}': {@response}", url, response);
 
                     if (!response.Success)
                     {
@@ -138,11 +139,11 @@ namespace MultiFactor.Ldap.Adapter.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, $"Multifactor API host unreachable {url}: {ex.Message}.");
+                    _logger.Error(ex, "Multifactor API host '{ApiUrl:l}' unreachable: {Message:l}", url, ex.Message);
                 }
             }
 
-            _logger.Error($"Multifactor API host unreachable {string.Join(';', baseUrls)}: replicas exhausted.");
+            _logger.Error("Multifactor API host unreachable {ApiUrls:l}: replicas exhausted.", string.Join(';', baseUrls));
 
             if (clientConfig.BypassSecondFactorWhenApiUnreachable)
             {
@@ -160,7 +161,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             }
             catch (HttpRequestException exception)
             {
-                _logger.Warning($"Failed to send request to API '{message.RequestUri}': {exception.Message}");
+                _logger.Warning("Failed to send request to API '{ApiUrl:l}': {Message:l}", message.RequestUri, exception.Message);
                 return null;
             }
         }
