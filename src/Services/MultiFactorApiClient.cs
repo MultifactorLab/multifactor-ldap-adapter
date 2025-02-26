@@ -143,7 +143,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                 }
             }
 
-            _logger.Error("Multifactor API host unreachable {ApiUrls:l}: replicas exhausted.", string.Join(';', baseUrls));
+            _logger.Error("Multifactor API Cloud unreachable");
 
             if (clientConfig.BypassSecondFactorWhenApiUnreachable)
             {
