@@ -25,7 +25,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             }
             else
             {
-                request.Headers.Add(_key, $"ldl-{Guid.NewGuid()}");
+                request.Headers.Add(_key, $"ldp-{Guid.NewGuid()}");
             }
             var resp = await base.SendAsync(request, cancellationToken);
 

@@ -3,6 +3,8 @@ using MultiFactor.Ldap.Adapter.Services;
 using Serilog;
 using System;
 using System.Net.Http;
+using Microsoft.Extensions.Http.Resilience;
+using Polly;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -39,7 +41,16 @@ namespace MultiFactor.Ldap.Adapter.Configuration
 
                 return handler;
             })
-            .AddHttpMessageHandler<MfTraceIdHeaderSetter>();
+            .AddHttpMessageHandler<MfTraceIdHeaderSetter>()
+            .AddResilienceHandler("mf-api-pipeline", x =>
+            {
+                x.AddRetry(new HttpRetryStrategyOptions
+                {
+                    MaxRetryAttempts = 2,
+                    Delay = TimeSpan.FromSeconds(1),
+                    BackoffType = DelayBackoffType.Exponential
+                });
+            });
         }
     }
 }
