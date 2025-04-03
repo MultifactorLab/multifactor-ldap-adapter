@@ -1,5 +1,5 @@
 //Copyright(c) 2021 MultiFactor
-//Please see licence at 
+//Please see licence at
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
 using MultiFactor.Ldap.Adapter.Configuration.Core;
@@ -64,7 +64,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// <summary>
         /// Multifactor API URL
         /// </summary>
-        public string ApiUrl { get; set; }
+        public string[] ApiUrls { get; set; }
 
         /// <summary>
         /// HTTP Proxy for API
@@ -90,7 +90,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// Certificate for TLS
         /// </summary>
         public X509Certificate2 X509Certificate { get; set; }
-        
+
         /// <summary>
         /// Certificate Password
         /// </summary>
@@ -127,7 +127,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 throw new Exception("Configuration error: 'logging-level' element not found");
             }
 
-            ApiUrl = apiUrlSetting;
+            ApiUrls = apiUrlSetting.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToArray();
             ApiTimeout = apiTimeout;
             ApiProxy = apiProxySetting;
             LogLevel = logLevelSetting;
@@ -137,7 +137,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             {
                 throw new Exception("Configuration error: Neither 'adapter-ldap-endpoint' or 'adapter-ldaps-endpoint' configured");
             }
-            
+
             ServerConfig = ldapServerConfig;
 
             if (!string.IsNullOrEmpty(certificatePassword))
@@ -231,12 +231,12 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             }
 
             LdapIdentityFormat transformLdapIdentityFormat = LdapIdentityFormat.None;
-            if (!string.IsNullOrEmpty(transformLdapIdentityString) && 
+            if (!string.IsNullOrEmpty(transformLdapIdentityString) &&
                 !Enum.TryParse<LdapIdentityFormat>(transformLdapIdentityString, true, out transformLdapIdentityFormat))
             {
                 throw new Exception("Configuration error: 'transform-ldap-identity' element has a wrong value");
             }
-            
+
             var configuration = new ClientConfiguration
             {
                 Name = name,
