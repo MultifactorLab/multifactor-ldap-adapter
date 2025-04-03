@@ -132,6 +132,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                     if (!response.Success)
                     {
                         _logger.Warning("Got unsuccessful response from API: {@response}", response);
+                        throw new HttpRequestException($"Got unsuccessful response from API. Status code: {res.StatusCode}.");
                     }
 
                     return response.Model;
