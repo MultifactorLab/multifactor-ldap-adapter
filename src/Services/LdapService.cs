@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using MultiFactor.Ldap.Adapter.Services.MemberOf;
 
 namespace MultiFactor.Ldap.Adapter.Services
 {
@@ -367,7 +368,7 @@ namespace MultiFactor.Ldap.Adapter.Services
                                 mailEntries.Add(entry);
                                 break;
                             case "memberOf":
-                                profile.MemberOf.AddRange(entry.Values.Select(v => DnToCn(v)));
+                                profile.MemberOf.AddRange(entry.Values);
                                 break;
                         }
                     }
@@ -406,6 +407,29 @@ namespace MultiFactor.Ldap.Adapter.Services
             }
 
             return groups;
+        }
+
+        public async Task<MemberOfResult> IsMemberOf(Stream ldapConnectedStream, LdapProfile profile, ClientConfiguration clientConfiguration, IEnumerable<string> groupDns)
+        {
+            if (!clientConfiguration.LoadActiveDirectoryNestedGroups)
+            {
+                var intersections = profile.MemberOf?.Select(FormatDn).Intersect(groupDns.Select(FormatDn))?.ToList() ?? new List<string>();
+                var isMember = intersections.Any();
+                var group = intersections.FirstOrDefault();
+                return new MemberOfResult(isMember, group);
+            }
+
+            IMemberOfService memberShipService = string.IsNullOrWhiteSpace(clientConfiguration.LdapBaseDn) ? new ActiveDirectoryMemberOfService() : new FreeIpaMemberOfService();
+            foreach (var group in groupDns)
+            {
+                var isMemberOf = await memberShipService.IsMemberOf(ldapConnectedStream, profile, group, _messageId++);
+                if (!isMemberOf) 
+                    continue;
+
+                return new MemberOfResult(true, group);
+            }
+            
+            return new MemberOfResult(false, string.Empty);
         }
 
         #endregion 
@@ -546,5 +570,9 @@ namespace MultiFactor.Ldap.Adapter.Services
             public string Name { get; set; }
             public IList<string> Values { get; set; }
         }
+
+        public static string FormatDn(string dn) => dn.ToLower().Replace(" ", string.Empty);
     }
+    
+    public record MemberOfResult(bool IsMember, string Group);
 }

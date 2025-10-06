@@ -9,6 +9,7 @@ using MultiFactor.Ldap.Adapter.Configuration;
 using Serilog;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -230,15 +231,14 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                         if (_clientConfig.CheckUserGroups())
                         {
-                            profile.MemberOf = await _ldapService.GetAllGroups(_serverStream, profile, _clientConfig);
-
                             //check ACL
                             if (_clientConfig.ActiveDirectoryGroup.Any())
                             {
-                                var accessGroup = _clientConfig.ActiveDirectoryGroup.FirstOrDefault(group => IsMemberOf(profile, group));
-                                if (accessGroup != null)
+                                var memberOfResult = await IsMemberOfAny(profile, _clientConfig.ActiveDirectoryGroup);
+                                
+                                if (memberOfResult.IsMember)
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is member of '{accessGroup.Trim()}' access group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is member of '{memberOfResult.Group.Trim()}' access group in {profile.BaseDn}", _userName);
                                 }
                                 else
                                 {
@@ -259,10 +259,10 @@ namespace MultiFactor.Ldap.Adapter.Server
                             //check if mfa is mandatory
                             if (_clientConfig.ActiveDirectory2FaGroup.Any())
                             {
-                                var mfaGroup = _clientConfig.ActiveDirectory2FaGroup.FirstOrDefault(group => IsMemberOf(profile, group));
-                                if (mfaGroup != null)
+                                var memberOfResult = await IsMemberOfAny(profile, _clientConfig.ActiveDirectory2FaGroup);
+                                if (memberOfResult.IsMember)
                                 {
-                                    _logger.Debug($"User '{{user:l}}' is member of '{mfaGroup.Trim()}' 2FA group in {profile.BaseDn}", _userName);
+                                    _logger.Debug($"User '{{user:l}}' is member of '{memberOfResult.Group.Trim()}' 2FA group in {profile.BaseDn}", _userName);
                                 }
                                 else
                                 {
@@ -274,10 +274,10 @@ namespace MultiFactor.Ldap.Adapter.Server
                             //check of mfa is not mandatory
                             if (_clientConfig.ActiveDirectory2FaBypassGroup.Any() && !bypass)
                             {
-                                var bypassGroup = _clientConfig.ActiveDirectory2FaBypassGroup.FirstOrDefault(group => IsMemberOf(profile, group));
-                                if (bypassGroup != null)
+                                var memberOfResult = await IsMemberOfAny(profile, _clientConfig.ActiveDirectory2FaBypassGroup);
+                                if (memberOfResult.IsMember)
                                 {
-                                    _logger.Information($"User '{{user:l}}' is member of '{bypassGroup.Trim()}' 2FA bypass group in {profile.BaseDn}", _userName);
+                                    _logger.Information($"User '{{user:l}}' is member of '{memberOfResult.Group.Trim()}' 2FA bypass group in {profile.BaseDn}", _userName);
                                     bypass = true;
                                 }
                                 else
@@ -453,9 +453,9 @@ namespace MultiFactor.Ldap.Adapter.Server
             return false;
         }
 
-        private bool IsMemberOf(LdapProfile profile, string group)
+        private async Task<MemberOfResult> IsMemberOfAny(LdapProfile profile, IEnumerable<string> groups)
         {
-            return profile.MemberOf?.Any(g => g.ToLower() == group.ToLower().Trim()) ?? false;
+            return await _ldapService.IsMemberOf(_serverStream, profile, _clientConfig, groups);
         }
     }
 
