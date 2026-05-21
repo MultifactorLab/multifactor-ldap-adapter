@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using MultiFactor.Ldap.Adapter.Core.Logging;
 using LdapIdentityFormat = MultiFactor.Ldap.Adapter.Core.NameResolve.LdapIdentityFormat;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
@@ -347,18 +348,60 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             return appSettings?["logging-level"];
         }
 
-        private static TimeSpan ParseHttpTimeout(string mfTimeoutSetting)
+        private static TimeSpan ParseHttpTimeout(string timeoutSetting)
         {
-            TimeSpan _minimalApiTimeout = TimeSpan.FromSeconds(65);
+            var recommendedTimeout = TimeSpan.FromSeconds(65);
 
-            if (!TimeSpan.TryParseExact(mfTimeoutSetting, @"hh\:mm\:ss", null, System.Globalization.TimeSpanStyles.None, out var httpRequestTimeout))
-                return _minimalApiTimeout;
+            if (string.IsNullOrWhiteSpace(timeoutSetting))
+            {
+                return recommendedTimeout;
+            }
 
-            return httpRequestTimeout == TimeSpan.Zero ?
-                Timeout.InfiniteTimeSpan // infinity timeout
-                : httpRequestTimeout < _minimalApiTimeout
-                    ? _minimalApiTimeout  // minimal timeout
-                    : httpRequestTimeout; // timeout from config
+            var isForced = timeoutSetting.EndsWith('!');
+            if (isForced)
+            {
+                timeoutSetting = timeoutSetting.TrimEnd('!');
+            }
+
+            if (!TimeSpan.TryParseExact(timeoutSetting,
+                    @"hh\:mm\:ss",
+                    null,
+                    System.Globalization.TimeSpanStyles.None,
+                    out var timeout))
+            {
+                StartupLogger.Warning(
+                    "Can't parse API timeout. Recommended timeout {Recommended}s is used",
+                    recommendedTimeout.TotalSeconds);
+
+                return recommendedTimeout;
+            }
+
+            if (timeout == TimeSpan.Zero)
+            {
+                return Timeout.InfiniteTimeSpan;
+            }
+
+            if (timeout >= recommendedTimeout)
+            {
+                return timeout;
+            }
+
+            if (!isForced)
+            {
+                StartupLogger.Warning(
+                    "Timeout {Timeout}s is less than recommended minimum {Recommended}s. Use 'value!' to force",
+                    timeout.TotalSeconds,
+                    recommendedTimeout.TotalSeconds);
+
+                return recommendedTimeout;
+            }
+
+            StartupLogger.Warning(
+                "Timeout {Timeout}s is less than recommended minimum {Recommended}s",
+                timeout.TotalSeconds,
+                recommendedTimeout.TotalSeconds);
+
+            return timeout;
         }
     }
 }
