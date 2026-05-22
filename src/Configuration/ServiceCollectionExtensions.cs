@@ -21,24 +21,28 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             services.AddHttpContextAccessor();
             services.AddTransient<MfTraceIdHeaderSetter>();
 
-            services.AddHttpClient(nameof(MultiFactorApiClient), client =>
-            {
-                client.Timeout = conf.ApiTimeout;
-            })
-            .ConfigurePrimaryHttpMessageHandler(prov =>
-            {
-                var handler = new HttpClientHandler();
+            var httpClientTimeout = ConfigurationValueParser.TryParseTimeout(conf.ApiTimeout, out var timeout)
+                ? timeout.Value
+                : ConfigurationValueParser.RecommendedTimeout;
 
-                if (string.IsNullOrWhiteSpace(conf.ApiProxy)) return handler;
-                logger.Debug("Using proxy " + conf.ApiProxy);
-                if (!WebProxyFactory.TryCreateWebProxy(conf.ApiProxy, out var webProxy))
+            services
+                .AddHttpClient(nameof(MultiFactorApiClient), client => { client.Timeout = httpClientTimeout; })
+                .ConfigurePrimaryHttpMessageHandler(prov =>
                 {
-                    throw new Exception("Unable to initialize WebProxy. Please, check whether multifactor-api-proxy URI is valid.");
-                }
-                handler.Proxy = webProxy;
+                    var handler = new HttpClientHandler();
 
-                return handler;
-            })
+                    if (string.IsNullOrWhiteSpace(conf.ApiProxy)) return handler;
+                    logger.Debug("Using proxy " + conf.ApiProxy);
+                    if (!WebProxyFactory.TryCreateWebProxy(conf.ApiProxy, out var webProxy))
+                    {
+                        throw new Exception(
+                            "Unable to initialize WebProxy. Please, check whether multifactor-api-proxy URI is valid.");
+                    }
+
+                    handler.Proxy = webProxy;
+
+                    return handler;
+                })
             .AddHttpMessageHandler<MfTraceIdHeaderSetter>();
         }
     }
