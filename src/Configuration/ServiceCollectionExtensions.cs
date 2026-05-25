@@ -21,9 +21,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             services.AddHttpContextAccessor();
             services.AddTransient<MfTraceIdHeaderSetter>();
 
-            var httpClientTimeout = ConfigurationValueParser.TryParseTimeout(conf.ApiTimeout, out var timeout)
-                ? timeout.Value
-                : ConfigurationValueParser.RecommendedTimeout;
+            var httpClientTimeout = ConfigurationValueParser.ParseTimeout(conf.ApiTimeout);
 
             services
                 .AddHttpClient(nameof(MultiFactorApiClient), client => { client.Timeout = httpClientTimeout; })
