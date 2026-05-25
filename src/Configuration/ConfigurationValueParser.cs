@@ -18,7 +18,7 @@ public static class ConfigurationValueParser
         var isForced = value.EndsWith('!');
         if (isForced)
         {
-            value = value[..^1];
+            value = value.TrimEnd('!');
         }
 
         if (!TimeSpan.TryParseExact(value,
