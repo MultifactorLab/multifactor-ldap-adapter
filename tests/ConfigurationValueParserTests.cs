@@ -66,7 +66,7 @@ public class ConfigurationValueParserTests
     [InlineData("00:01:04!")]
     public void ParseTimeout_BelowMinimumWithForce_ReturnsConfiguredValue(string value)
     {
-        var expected = TimeSpan.ParseExact(value[..^1], @"hh\:mm\:ss", null);
+        var expected = TimeSpan.ParseExact(value.TrimEnd('!'), @"hh\:mm\:ss", null);
 
         var timeout = ConfigurationValueParser.ParseTimeout(value);
 
