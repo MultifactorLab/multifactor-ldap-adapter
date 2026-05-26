@@ -3,6 +3,7 @@ using MultiFactor.Ldap.Adapter.Services;
 using Serilog;
 using System;
 using System.Net.Http;
+using MultiFactor.Ldap.Adapter.Core.Logging;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
 {
@@ -21,27 +22,31 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             services.AddHttpContextAccessor();
             services.AddTransient<MfTraceIdHeaderSetter>();
 
-            var httpClientTimeout = ConfigurationValueParser.ParseTimeout(conf.ApiTimeout);
+            var httpTimeout = HttpClientTimeout.Parse(conf.ApiTimeout);
+            if (!string.IsNullOrWhiteSpace(httpTimeout.Warning))
+            {
+                StartupLogger.Warning(httpTimeout.Warning);
+            }
 
             services
-                .AddHttpClient(nameof(MultiFactorApiClient), client => { client.Timeout = httpClientTimeout; })
-                .ConfigurePrimaryHttpMessageHandler(prov =>
-                {
-                    var handler = new HttpClientHandler();
+                .AddHttpClient(nameof(MultiFactorApiClient), client => { client.Timeout = httpTimeout; })
+                .ConfigurePrimaryHttpMessageHandler(_ => CreateHttpHandler(conf, logger))
+                .AddHttpMessageHandler<MfTraceIdHeaderSetter>();
+        }
 
-                    if (string.IsNullOrWhiteSpace(conf.ApiProxy)) return handler;
-                    logger.Debug("Using proxy " + conf.ApiProxy);
-                    if (!WebProxyFactory.TryCreateWebProxy(conf.ApiProxy, out var webProxy))
-                    {
-                        throw new Exception(
-                            "Unable to initialize WebProxy. Please, check whether multifactor-api-proxy URI is valid.");
-                    }
+        private static HttpClientHandler CreateHttpHandler(ServiceConfiguration conf, ILogger logger)
+        {
+            var handler = new HttpClientHandler();
 
-                    handler.Proxy = webProxy;
+            if (string.IsNullOrWhiteSpace(conf.ApiProxy)) return handler;
 
-                    return handler;
-                })
-            .AddHttpMessageHandler<MfTraceIdHeaderSetter>();
+            logger.Debug("Using proxy " + conf.ApiProxy);
+            if (!WebProxyFactory.TryCreateWebProxy(conf.ApiProxy, out var webProxy))
+                throw new Exception(
+                    "Unable to initialize WebProxy. Please, check whether multifactor-api-proxy URI is valid.");
+
+            handler.Proxy = webProxy;
+            return handler;
         }
     }
 }
