@@ -159,7 +159,6 @@ namespace MultiFactor.Ldap.Adapter.Services
                 _logger.Warning("Bypass second factor");
 
                 return MultiFactorAccessRequest.Bypass;
-
             }
         }
 
