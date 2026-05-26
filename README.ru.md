@@ -251,6 +251,9 @@ $ sudo systemctl enable multifactor-ldap
 <add key="multifactor-api-url" value="https://api.multifactor.ru"/>
 <!--Таймаут запросов в API Мультифактора, минимальное значение 65 секунд -->
 <add key="multifactor-api-timeout" value="00:01:05"/>
+<!--Если указываете время менее 65 секунд, используйте следующий синтаксис. Время в формате hh:mm:ss-->
+<add key="multifactor-api-timeout" value="00:00:45!"/>
+
 <!-- Параметр NAS-Identifier для подключения к API Мультифактора - из личного кабинета -->
 <add key="multifactor-nas-identifier" value=""/>
 <!-- Параметр Shared Secret для подключения к API Мультифактора - из личного кабинета -->
