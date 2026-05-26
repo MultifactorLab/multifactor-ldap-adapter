@@ -151,14 +151,13 @@ namespace MultiFactor.Ldap.Adapter.Services
             {
                 _logger.Error(ex, $"Multifactor API host unreachable {url}: {ex.Message}");
 
-                if (!clientConfig.BypassSecondFactorWhenApiUnreachable)
+                if (clientConfig.BypassSecondFactorWhenApiUnreachable)
                 {
-                    return null;
+                    _logger.Warning("Bypass second factor");
+                    return MultiFactorAccessRequest.Bypass;
                 }
 
-                _logger.Warning("Bypass second factor");
-
-                return MultiFactorAccessRequest.Bypass;
+                return null;
             }
         }
 
