@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using MultiFactor.Ldap.Adapter.Core.Logging;
 using LdapIdentityFormat = MultiFactor.Ldap.Adapter.Core.NameResolve.LdapIdentityFormat;
 
 namespace MultiFactor.Ldap.Adapter.Configuration
@@ -74,7 +75,7 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         /// <summary>
         /// HTTP Timeout for Multifactor requests
         /// </summary>
-        public TimeSpan ApiTimeout { get; set; }
+        public string ApiTimeout { get; set; }
 
         /// <summary>
         /// Logging level
@@ -121,14 +122,13 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             {
                 throw new Exception("Configuration error: 'multifactor-api-url' element not found");
             }
-            TimeSpan apiTimeout = ParseHttpTimeout(apiTimeoutSetting);
             if (string.IsNullOrEmpty(logLevelSetting))
             {
                 throw new Exception("Configuration error: 'logging-level' element not found");
             }
 
             ApiUrl = apiUrlSetting;
-            ApiTimeout = apiTimeout;
+            ApiTimeout = apiTimeoutSetting;
             ApiProxy = apiProxySetting;
             LogLevel = logLevelSetting;
 
@@ -345,20 +345,6 @@ namespace MultiFactor.Ldap.Adapter.Configuration
         {
             var appSettings = ConfigurationManager.AppSettings;
             return appSettings?["logging-level"];
-        }
-
-        private static TimeSpan ParseHttpTimeout(string mfTimeoutSetting)
-        {
-            TimeSpan _minimalApiTimeout = TimeSpan.FromSeconds(65);
-
-            if (!TimeSpan.TryParseExact(mfTimeoutSetting, @"hh\:mm\:ss", null, System.Globalization.TimeSpanStyles.None, out var httpRequestTimeout))
-                return _minimalApiTimeout;
-
-            return httpRequestTimeout == TimeSpan.Zero ?
-                Timeout.InfiniteTimeSpan // infinity timeout
-                : httpRequestTimeout < _minimalApiTimeout
-                    ? _minimalApiTimeout  // minimal timeout
-                    : httpRequestTimeout; // timeout from config
         }
     }
 }

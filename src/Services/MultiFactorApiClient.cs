@@ -137,15 +137,13 @@ namespace MultiFactor.Ldap.Adapter.Services
 
                 return response.Model;
             }
-            catch (TaskCanceledException tce)
+            catch (HttpRequestException ex)
             {
-                _logger.Error(tce, $"Multifactor API host unreachable {url}: timeout");
-
-                if (clientConfig.BypassSecondFactorWhenApiUnreachable)
-                {
-                    _logger.Warning("Bypass second factor");
-                    return MultiFactorAccessRequest.Bypass;
-                }
+                return ProcessHttpRequestException(ex, clientConfig);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Error("Multifactor API timeout expired for endpoint: {Url}", url);
 
                 return null;
             }
@@ -161,6 +159,28 @@ namespace MultiFactor.Ldap.Adapter.Services
 
                 return null;
             }
+        }
+
+        private MultiFactorAccessRequest ProcessHttpRequestException(HttpRequestException ex,
+            ClientConfiguration clientConfig)
+        {
+            if (ex.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                _logger.Error("Rate limit exceeded: {Message}", ex.Message);
+
+                return null;
+            }
+
+            _logger.Error("Multifactor API host unreachable: {Message}", ex.Message);
+
+            if (clientConfig.BypassSecondFactorWhenApiUnreachable)
+            {
+                _logger.Warning("Bypass second factor");
+
+                return MultiFactorAccessRequest.Bypass;
+            }
+
+            return null;
         }
     }
 

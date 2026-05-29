@@ -211,6 +211,9 @@ The component's parameters are stored in ```/opt/multifactor/ldap/multifactor-ld
 <add key="multifactor-api-url" value="https://api.multifactor.ru"/>
 <!--Timeout for requests in the Multifactor API, the minimum value is 65 seconds-->
 <add key="multifactor-api-timeout" value="00:01:05"/>
+<!--If you specify a time less than 65 seconds, use the following syntax. Time format is hh:mm:ss-->
+<add key="multifactor-api-timeout" value="00:00:45!"/>
+
 <!-- NAS-Identifier parameter to connect to the Multifactor API - from resource details in your account -->
 <add key="multifactor-nas-identifier" value=""/>
 <!-- Shared Secret parameter to connect to the Multifactor API - from resource details in your account -->
