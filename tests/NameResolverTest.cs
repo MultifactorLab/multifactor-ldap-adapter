@@ -21,7 +21,8 @@ namespace MultiFactor.Ldap.Adapter.Tests
             );
             var resolver = host.Services.GetRequiredService<NameResolverService>();
             var context = new NameResolverContext(new[] {
-                new NetbiosDomainName {
+                new NetbiosDomainName
+                {
                     Domain = "domain.test",
                     NetbiosName = "DOMAIN"
                 }
