@@ -75,8 +75,8 @@ namespace MultiFactor.Ldap.Adapter.Server
             var responseStats = new ExchangeStats();
 
             await Task.WhenAny(
-                DataExchange(_clientConnection, _clientStream, _serverConnection, _serverStream, ParseAndProcessRequest, requestStats, from, to),
-                DataExchange(_serverConnection, _serverStream, _clientConnection, _clientStream, ParseAndProcessResponse, responseStats, to, from));
+                DataExchange(_clientConnection, _clientStream, _serverConnection, _serverStream, ParseAndProcessRequest, requestStats),
+                DataExchange(_serverConnection, _serverStream, _clientConnection, _clientStream, ParseAndProcessResponse, responseStats));
 
             _closing = true;
 
@@ -85,8 +85,10 @@ namespace MultiFactor.Ldap.Adapter.Server
         }
 
 
-        private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, Task<(byte[], int)>> process, ExchangeStats stats, string from, string to)
+        private async Task DataExchange(TcpClient source, Stream sourceStream, TcpClient target, Stream targetStream, Func<byte[], int, Task<(byte[], int)>> process, ExchangeStats stats)
         {
+            var from = source.Client.RemoteEndPoint.ToString();
+            var to = target.Client.RemoteEndPoint.ToString();
             try
             {
                 var streamReader = new LdapStreamReader(sourceStream, _logger);
