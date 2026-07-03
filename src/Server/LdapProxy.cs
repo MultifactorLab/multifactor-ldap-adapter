@@ -142,7 +142,16 @@ namespace MultiFactor.Ldap.Adapter.Server
 
         private async Task<(byte[], int)> ParseAndProcessRequest(byte[] data, int length)
         {
-            var request = await LdapRequest.FromBytesAsync(data);
+            LdapRequest request;
+            try
+            {
+                request = await LdapRequest.FromBytesAsync(data);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Failed to parse {length} byte(s) request from {client}, bypassing as-is", length, _clientConnection.Client.RemoteEndPoint);
+                return await Task.FromResult((data, length));
+            }
 
             if (request.RequestType == LdapRequestType.SearchRequest)
             {
