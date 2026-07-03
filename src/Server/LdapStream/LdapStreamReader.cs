@@ -37,25 +37,30 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
 
         public async Task<LdapPacketBuffer> ReadLdapPacket()
         {
-            int totalRead = await _inputStream.ReadAsync(_readBuffer, 0, 2);
-            if (totalRead < 2)
+            int totalRead;
+            try
             {
-                // 0 bytes: connection gracefully closed, 1 byte: stream ended in the middle of a packet header
-                if (totalRead > 0)
-                {
-                    _logger.Warning("Unexpected end of stream while reading LDAP packet header: got {read} of 2 byte(s)", totalRead);
-                }
-                return GetResultPacket(_readBuffer, totalRead, false);
+                await _inputStream.ReadExactlyAsync(_readBuffer, 0, 2);
+                totalRead = 2;
+            }
+            catch (EndOfStreamException)
+            {
+                _logger.Warning("Unexpected end of stream while reading LDAP packet header");
+                return GetResultPacket(_readBuffer, 0, false);
             }
             //  handle multi-octet BER LEN
             if (_readBuffer[1] >> 7 == 1)
             {
                 var lengthOctets = _readBuffer[1] & 127;
-                var lengthRead = await _inputStream.ReadAsync(_readBuffer, totalRead, lengthOctets);
-                totalRead += lengthRead;
-                if (lengthRead < lengthOctets)
+                try
                 {
-                    _logger.Warning("Unexpected end of stream while reading LDAP packet length: got {read} of {expected} length octet(s)", lengthRead, lengthOctets);
+                    await _inputStream.ReadExactlyAsync(_readBuffer, totalRead, lengthOctets);
+                    totalRead += lengthOctets;
+                }
+                catch (EndOfStreamException)
+                {
+                    _logger.Warning("Unexpected end of stream while reading LDAP packet length: expected {expected} length octet(s)", lengthOctets);
+                    return GetResultPacket(_readBuffer, 0, false);
                 }
             }
             var berLen = await Utils.BerLengthToInt(_readBuffer, 1);
@@ -71,6 +76,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
                 Array.Copy(_readBuffer, newBuffer, totalRead);
                 _readBuffer = newBuffer;
             }
+
             // read packet until end
             int attempts = 0;
             while (totalRead < berLenWithHeading)
