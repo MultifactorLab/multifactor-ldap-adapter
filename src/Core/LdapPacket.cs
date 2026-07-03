@@ -23,6 +23,7 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
+using Serilog;
 using System;
 using System.IO;
 using System.Linq;
@@ -97,9 +98,11 @@ namespace MultiFactor.Ldap.Adapter.Core
                     var packet = new LdapPacket(Tag.Parse(tagByte[0]));
                     packet.ChildAttributes.AddRange(await ParseAttributes(contentBytes, 0, contentLength.Length));
 
-                    if (packet.ChildAttributes.Any(attr => attr.LdapOperation == Core.LdapOperation.SearchResultDone))
+                    var searchDone = packet.ChildAttributes.FirstOrDefault(attr => attr.LdapOperation == Core.LdapOperation.SearchResultDone);
+                    if (searchDone != null)
                     {
-                        return null; //thats all, stop reading
+                        LogNonSuccessResult(searchDone);
+                        return null;
                     }
 
                     return packet;
@@ -112,6 +115,21 @@ namespace MultiFactor.Ldap.Adapter.Core
             }
 
             return null;
+        }
+
+        private static void LogNonSuccessResult(LdapAttribute searchDone)
+        {
+            var resultAttr = searchDone.ChildAttributes.FirstOrDefault(attr => attr.DataType == UniversalDataType.Enumerated);
+            if (resultAttr == null || resultAttr.Value.Length == 0)
+            {
+                return;
+            }
+
+            var result = (LdapResult)resultAttr.GetValue();
+            if (result != LdapResult.success)
+            {
+                Log.Logger.Warning("LDAP search operation completed with {result} result", result);
+            }
         }
     }
 }
