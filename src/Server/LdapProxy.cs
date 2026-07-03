@@ -61,7 +61,7 @@ namespace MultiFactor.Ldap.Adapter.Server
             _clientConfig = clientConfig ?? throw new ArgumentNullException(nameof(clientConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            _ldapService = new LdapService(clientConfig);
+            _ldapService = new LdapService(clientConfig, logger);
             _nameResolverService = nameResolverService;
         }
 
@@ -223,6 +223,7 @@ namespace MultiFactor.Ldap.Adapter.Server
 
                     if (bound)  //first factor authenticated
                     {
+                        _logger.Debug("User '{user:l}' first factor verified at {server}", _userName, _serverConnection.Client.RemoteEndPoint);
                         var bypass = false;
 
                         //apply login transformation users if any
