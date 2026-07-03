@@ -72,7 +72,6 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             _logger.Information("Opened {client} => {server} client {clientName:l}", from, to, _clientConfig.Name);
 
-            var stopwatch = Stopwatch.StartNew();
             var requestStats = new ExchangeStats();
             var responseStats = new ExchangeStats();
 
@@ -82,8 +81,8 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             _closing = true;
 
-            _logger.Information("Closed {client} => {server} client {clientName:l} after {duration} ms: requests {requestPackets} packet(s) / {requestBytes} byte(s), responses {responsePackets} packet(s) / {responseBytes} byte(s)",
-                from, to, _clientConfig.Name, stopwatch.ElapsedMilliseconds, requestStats.Packets, requestStats.Bytes, responseStats.Packets, responseStats.Bytes);
+            _logger.Information("Closed {client} => {server} client {clientName:l} : requests {requestPackets} packet(s) / {requestBytes} byte(s), responses {responsePackets} packet(s) / {responseBytes} byte(s)",
+                from, to, _clientConfig.Name, requestStats.Packets, requestStats.Bytes, responseStats.Packets, responseStats.Bytes);
         }
 
 
