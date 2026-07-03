@@ -365,23 +365,32 @@ namespace MultiFactor.Ldap.Adapter.Server
 
             if (_status == LdapProxyAuthenticationStatus.UserDnSearch)
             {
-                var packet = await LdapPacket.ParsePacket(data);
-                var searchResultEntry = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.SearchResultEntry);
-
-                if (searchResultEntry != null)
+                try
                 {
-                    var userDn = searchResultEntry.ChildAttributes[0].GetValue<string>();
+                    var packet = await LdapPacket.ParsePacket(data);
+                    var searchResultEntry = packet.ChildAttributes.SingleOrDefault(c => c.LdapOperation == LdapOperation.SearchResultEntry);
 
-                    if (_lookupUserName != null && userDn != null)
+                    if (searchResultEntry != null)
                     {
-                        userDn = userDn.ToLower(); //becouse some apps do it
+                        var userDn = searchResultEntry.ChildAttributes[0].GetValue<string>();
 
-                        _usersDn2Cn.TryRemove(userDn, out _);
-                        _usersDn2Cn.TryAdd(userDn, _lookupUserName);
+                        if (_lookupUserName != null && userDn != null)
+                        {
+                            userDn = userDn.ToLower(); //becouse some apps do it
 
-                        _usersCn2Dn.TryRemove(_lookupUserName, out _);
-                        _usersCn2Dn.TryAdd(_lookupUserName, userDn);
+                            _usersDn2Cn.TryRemove(userDn, out _);
+                            _usersDn2Cn.TryAdd(userDn, _lookupUserName);
+
+                            _usersCn2Dn.TryRemove(_lookupUserName, out _);
+                            _usersCn2Dn.TryAdd(_lookupUserName, userDn);
+
+                            _logger.Debug("Resolved user '{user:l}' DN: {dn:l}", _lookupUserName, userDn);
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning(ex, "Failed to parse DN search response of {length} byte(s), bypassing as-is", length);
                 }
 
                 _status = LdapProxyAuthenticationStatus.None;
