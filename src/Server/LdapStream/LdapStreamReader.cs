@@ -40,6 +40,11 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
             int totalRead = await _inputStream.ReadAsync(_readBuffer, 0, 2);
             if (totalRead < 2)
             {
+                // 0 bytes: connection gracefully closed, 1 byte: stream ended in the middle of a packet header
+                if (totalRead > 0)
+                {
+                    _logger.Warning("Unexpected end of stream while reading LDAP packet header");
+                }
                 return GetResultPacket(_readBuffer, totalRead, false);
             }
             //  handle multi-octet BER LEN
