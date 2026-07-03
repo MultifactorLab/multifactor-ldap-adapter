@@ -43,14 +43,20 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
                 // 0 bytes: connection gracefully closed, 1 byte: stream ended in the middle of a packet header
                 if (totalRead > 0)
                 {
-                    _logger.Warning("Unexpected end of stream while reading LDAP packet header");
+                    _logger.Warning("Unexpected end of stream while reading LDAP packet header: got {read} of 2 byte(s)", totalRead);
                 }
                 return GetResultPacket(_readBuffer, totalRead, false);
             }
             //  handle multi-octet BER LEN
             if (_readBuffer[1] >> 7 == 1)
             {
-                totalRead += await _inputStream.ReadAsync(_readBuffer, totalRead, _readBuffer[1] & 127);
+                var lengthOctets = _readBuffer[1] & 127;
+                var lengthRead = await _inputStream.ReadAsync(_readBuffer, totalRead, lengthOctets);
+                totalRead += lengthRead;
+                if (lengthRead < lengthOctets)
+                {
+                    _logger.Warning("Unexpected end of stream while reading LDAP packet length: got {read} of {expected} length octet(s)", lengthRead, lengthOctets);
+                }
             }
             var berLen = await Utils.BerLengthToInt(_readBuffer, 1);
             int berLenWithHeading = berLen.Length + berLen.BerByteCount + 1;
@@ -75,6 +81,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
                     attempts++;
                     if (attempts > 3)
                     {
+                        _logger.Warning("Unexpected end of stream while reading LDAP packet: got {read} of {expected} byte(s)", totalRead, berLenWithHeading);
                         return GetResultPacket(_readBuffer, totalRead, false);
                     }
 
