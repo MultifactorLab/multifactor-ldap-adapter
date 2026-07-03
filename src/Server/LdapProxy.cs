@@ -9,7 +9,6 @@ using MultiFactor.Ldap.Adapter.Configuration;
 using Serilog;
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -90,7 +89,7 @@ namespace MultiFactor.Ldap.Adapter.Server
         {
             try
             {
-                var streamReader = new LdapStreamReader(sourceStream);
+                var streamReader = new LdapStreamReader(sourceStream, _logger);
                 LdapPacketBuffer ldapPacket;
                 do
                 {

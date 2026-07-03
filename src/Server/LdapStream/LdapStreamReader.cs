@@ -1,4 +1,5 @@
-﻿using MultiFactor.Ldap.Adapter.Core;
+using MultiFactor.Ldap.Adapter.Core;
+using Serilog;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -11,12 +12,15 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
 
         private byte[] _readBuffer;
         private Stream _inputStream;
-        public LdapStreamReader(Stream inputStream) : this(inputStream, DEFAULT_BUFFER_SIZE)
+        private readonly ILogger _logger;
+
+        public LdapStreamReader(Stream inputStream, ILogger logger = null) : this(inputStream, DEFAULT_BUFFER_SIZE, logger)
         { }
-        public LdapStreamReader(Stream inputStream, int bufferSize)
+        public LdapStreamReader(Stream inputStream, int bufferSize, ILogger logger = null)
         {
             _readBuffer = new byte[bufferSize];
             _inputStream = inputStream;
+            _logger = logger ?? Log.Logger;
         }
 
         private LdapPacketBuffer GetResultPacket(byte[] buffer, int totalRead, bool packetValid)
