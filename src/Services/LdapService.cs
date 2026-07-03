@@ -325,6 +325,8 @@ namespace MultiFactor.Ldap.Adapter.Services
         }
         public async Task<LdapProfile> LoadProfile(Stream ldapConnectedStream, string userName, string baseDn)
         {
+            _logger.Debug("Loading profile of user '{user:l}' in {baseDn:l}", userName, baseDn);
+
             var request = BuildLoadProfileRequest(userName, baseDn);
             var requestData = request.GetBytes();
 
@@ -380,6 +382,11 @@ namespace MultiFactor.Ldap.Adapter.Services
             if (profile != null)
             {
                 profile.Email = GetMail(mailEntries);
+                _logger.Debug("Loaded profile of user '{user:l}' ({dn:l})", userName, profile.Dn);
+            }
+            else
+            {
+                _logger.Debug("Profile of user '{user:l}' was not found in {baseDn:l}", userName, baseDn);
             }
 
             return profile;
@@ -407,6 +414,8 @@ namespace MultiFactor.Ldap.Adapter.Services
             {
                 groups.AddRange(GetGroups(packet));
             }
+
+            _logger.Debug("Loaded {count} group(s) of user {dn:l}", groups.Count, profile.Dn);
 
             return groups;
         }
