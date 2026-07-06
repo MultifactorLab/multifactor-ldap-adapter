@@ -45,7 +45,7 @@ namespace MultiFactor.Ldap.Adapter.Server.LdapStream
             }
             catch (EndOfStreamException)
             {
-                _logger.Warning("Unexpected end of stream while reading LDAP packet header");
+                _logger.Debug("End of stream while reading LDAP packet header, connection closed");
                 return GetResultPacket(_readBuffer, 0, false);
             }
             //  handle multi-octet BER LEN
