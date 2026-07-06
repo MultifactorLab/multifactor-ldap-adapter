@@ -146,6 +146,11 @@ namespace MultiFactor.Ldap.Adapter.Tests
             {
                 return base.ReadAsync(buffer, offset, Math.Min(count, _chunkSize), cancellationToken);
             }
+
+            public override ValueTask<int> ReadAsync(Memory<byte> buffer, System.Threading.CancellationToken cancellationToken = default)
+            {
+                return base.ReadAsync(buffer.Slice(0, Math.Min(buffer.Length, _chunkSize)), cancellationToken);
+            }
         }
     }
 }
