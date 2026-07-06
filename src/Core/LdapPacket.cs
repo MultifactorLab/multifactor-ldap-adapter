@@ -126,10 +126,18 @@ namespace MultiFactor.Ldap.Adapter.Core
             }
 
             var result = (LdapResult)resultAttr.GetValue();
-            if (result != LdapResult.success)
+            if (result == LdapResult.success)
             {
-                Log.Logger.Warning("LDAP search operation completed with {result} result", result);
+                return;
             }
+
+            if (result is LdapResult.referral or LdapResult.sizeLimitExceeded or LdapResult.timeLimitExceeded)
+            {
+                Log.Logger.Debug("LDAP search operation completed with {result} result", result);
+                return;
+            }
+
+            Log.Logger.Warning("LDAP search operation completed with {result} result", result);
         }
     }
 }
