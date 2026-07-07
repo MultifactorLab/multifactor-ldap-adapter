@@ -5,6 +5,7 @@
 using MultiFactor.Ldap.Adapter.Configuration;
 using MultiFactor.Ldap.Adapter.Core;
 using MultiFactor.Ldap.Adapter.Core.NameResolving;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,10 +20,12 @@ namespace MultiFactor.Ldap.Adapter.Services
         //must not repeat proxied messages ids
         private int _messageId = Int32.MaxValue - 9999;
         private readonly ClientConfiguration _config;
+        private readonly ILogger _logger;
 
-        public LdapService(ClientConfiguration config)
+        public LdapService(ClientConfiguration config, ILogger logger = null)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _logger = logger ?? Log.Logger;
         }
 
         #region requests builders
@@ -61,7 +64,7 @@ namespace MultiFactor.Ldap.Adapter.Services
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.OctetString, baseDn));    //base dn
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)2));    //scope: subtree
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Enumerated, (byte)3));    //aliases: never
-            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, byte.MaxValue - 1)); //size limit: 127
+            searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, byte.MaxValue - 1)); //size limit: 254
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Integer, (byte)60));      //time limit: 60
             searchRequest.ChildAttributes.Add(new LdapAttribute(UniversalDataType.Boolean, false));         //typesOnly: false
 
@@ -322,6 +325,8 @@ namespace MultiFactor.Ldap.Adapter.Services
         }
         public async Task<LdapProfile> LoadProfile(Stream ldapConnectedStream, string userName, string baseDn)
         {
+            _logger.Debug("Loading profile of user '{user:l}' in {baseDn:l}", userName, baseDn);
+
             var request = BuildLoadProfileRequest(userName, baseDn);
             var requestData = request.GetBytes();
 
@@ -374,10 +379,15 @@ namespace MultiFactor.Ldap.Adapter.Services
                 }
             }
 
-            if (profile != null)
+            if (profile == null)
             {
-                profile.Email = GetMail(mailEntries);
+                _logger.Debug("Profile of user '{user:l}' was not found in {baseDn:l}", userName, baseDn);
+
+                return null;
             }
+
+            profile.Email = GetMail(mailEntries);
+            _logger.Debug("Loaded profile of user '{user:l}' ({dn:l})", userName, profile.Dn);
 
             return profile;
         }
@@ -404,6 +414,8 @@ namespace MultiFactor.Ldap.Adapter.Services
             {
                 groups.AddRange(GetGroups(packet));
             }
+
+            _logger.Debug("Loaded {count} group(s) of user {dn:l}", groups.Count, profile.Dn);
 
             return groups;
         }
