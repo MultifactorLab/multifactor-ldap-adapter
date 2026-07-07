@@ -379,15 +379,15 @@ namespace MultiFactor.Ldap.Adapter.Services
                 }
             }
 
-            if (profile != null)
-            {
-                profile.Email = GetMail(mailEntries);
-                _logger.Debug("Loaded profile of user '{user:l}' ({dn:l})", userName, profile.Dn);
-            }
-            else
+            if (profile == null)
             {
                 _logger.Debug("Profile of user '{user:l}' was not found in {baseDn:l}", userName, baseDn);
+
+                return null;
             }
+
+            profile.Email = GetMail(mailEntries);
+            _logger.Debug("Loaded profile of user '{user:l}' ({dn:l})", userName, profile.Dn);
 
             return profile;
         }
