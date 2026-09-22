@@ -18,6 +18,8 @@ namespace MultiFactor.Ldap.Adapter.Server
 {
     internal abstract class LdapServerBase
     {
+        private static readonly TimeSpan TlsShutdownTimeout = TimeSpan.FromSeconds(2);
+
         private bool _started = false;
         private readonly LdapProxyFactory _proxyFactory;
 
@@ -177,6 +179,7 @@ namespace MultiFactor.Ldap.Adapter.Server
                 cancellationTokenSource.CancelAfter(clientConfiguration.LdapBindTimeout);
                 
                 await serverConnection.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port, cancellationTokenSource.Token);
+                EnableKeepAlive(serverConnection.Client, clientConfiguration);
                 using var serverStream = await GetServerStream(serverConnection, remoteEndPoint);
                 using var clientStream = await GetClientStream(client);
                 
@@ -188,6 +191,12 @@ namespace MultiFactor.Ldap.Adapter.Server
                     clientConfiguration);
                 
                 await proxy.ProcessDataExchange();
+
+                // Close the TLS sessions explicitly before the sockets are disposed
+                await Task.WhenAll(
+                    SendCloseNotifyAsync(clientStream, "client"),
+                    SendCloseNotifyAsync(serverStream, "server"));
+
                 return true;
             }
             catch (Exception ex)
@@ -196,6 +205,65 @@ namespace MultiFactor.Ldap.Adapter.Server
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Turns on TCP keep-alive for the connection to the LDAP server. Probes keep the flow
+        /// alive in the state tables of intermediate firewalls and let a silently broken path be
+        /// detected in seconds
+        /// </summary>
+        private void EnableKeepAlive(Socket socket, ClientConfiguration clientConfiguration)
+        {
+            var idle = clientConfiguration.LdapServerKeepAliveTime;
+            if (idle <= TimeSpan.Zero)
+            {
+                return;
+            }
+
+            var idleSeconds = Math.Max(1, (int)idle.TotalSeconds);
+            var intervalSeconds = Math.Max(1, (int)clientConfiguration.LdapServerKeepAliveInterval.TotalSeconds);
+            var retryCount = clientConfiguration.LdapServerKeepAliveRetryCount;
+
+            try
+            {
+                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, idleSeconds);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, intervalSeconds);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, retryCount);
+
+                _logger.Debug("TCP keep-alive enabled for the LDAP server connection: idle {idle} s, interval {interval} s, {retries} probe(s)",
+                    idleSeconds, intervalSeconds, retryCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning("Unable to enable TCP keep-alive on the connection to the LDAP server: {message:l}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Sends the TLS close_notify alert so the peer can tell a graceful shutdown from a
+        /// truncated stream. Best effort: the peer may be gone already and the opposite data
+        /// pump may still be using the stream, so a failure here is not an error.
+        /// </summary>
+        private async Task SendCloseNotifyAsync(Stream stream, string side)
+        {
+            if (stream is not SslStream sslStream)
+            {
+                return;
+            }
+
+            _logger.Debug("Try to send close_notify to the {side:l} side", side);
+
+            try
+            {
+                await sslStream.ShutdownAsync().WaitAsync(TlsShutdownTimeout);
+                
+                _logger.Debug("Successfully send close_notify to the {side:l} side", side);
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug("Unable to send close_notify to the {side:l} side: {message:l}", side, ex.Message);
+            }
         }
 
         private static RemoteEndPoint ParseServerEndpoint(string server)

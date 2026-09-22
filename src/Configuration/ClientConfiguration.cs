@@ -43,6 +43,24 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             .ToArray() ?? Array.Empty<string>();
 
         public TimeSpan LdapBindTimeout { get; set; } = new TimeSpan(0, 0, 30);
+
+        /// <summary>
+        /// Idle time before the first TCP keep-alive probe is sent to the LDAP server.
+        /// TimeSpan.Zero disables keep-alive on the server connection.
+        /// </summary>
+        public TimeSpan LdapServerKeepAliveTime { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// Interval between TCP keep-alive probes sent to the LDAP server.
+        /// Only used when <see cref="LdapServerKeepAliveTime"/> turns keep-alive on.
+        /// </summary>
+        public TimeSpan LdapServerKeepAliveInterval { get; set; } = new TimeSpan(0, 0, 10);
+
+        /// <summary>
+        /// Number of unacknowledged TCP keep-alive probes before the server connection
+        /// is considered dead. Only used when <see cref="LdapServerKeepAliveTime"/> turns keep-alive on.
+        /// </summary>
+        public int LdapServerKeepAliveRetryCount { get; set; } = 3;
         
         /// <summary>
         /// Bind user container

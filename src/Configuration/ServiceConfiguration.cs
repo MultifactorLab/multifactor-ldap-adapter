@@ -1,4 +1,4 @@
-//Copyright(c) 2021 MultiFactor
+﻿//Copyright(c) 2021 MultiFactor
 //Please see licence at 
 //https://github.com/MultifactorLab/multifactor-ldap-adapter/blob/main/LICENSE.md
 
@@ -215,6 +215,9 @@ namespace MultiFactor.Ldap.Adapter.Configuration
             var logFormat                                       = appSettings.Settings["logging-format"]?.Value;
             var transformLdapIdentityString                          = appSettings.Settings["transform-ldap-identity"]?.Value;
             var ldapBindTimeout                                 = appSettings.Settings["ldap-bind-timeout"]?.Value;
+            var keepAliveTime                                   = appSettings.Settings["ldap-server-keep-alive-time"]?.Value;
+            var keepAliveInterval                               = appSettings.Settings["ldap-server-keep-alive-interval"]?.Value;
+            var keepAliveRetries                                = appSettings.Settings["ldap-server-keep-alive-retries"]?.Value;
             var privacyMode                                     = appSettings.Settings["privacy-mode"]?.Value;
             
             if (string.IsNullOrEmpty(ldapServerSetting))
@@ -329,6 +332,22 @@ namespace MultiFactor.Ldap.Adapter.Configuration
                 {
                     configuration.LdapBindTimeout = bindTimeout;
                 }
+            }
+
+            //  TimeSpan.Zero is a valid value here: it turns keep-alive off
+            if (TimeSpan.TryParse(keepAliveTime, out var kaTime) && kaTime >= TimeSpan.Zero)
+            {
+                configuration.LdapServerKeepAliveTime = kaTime;
+            }
+
+            if (TimeSpan.TryParse(keepAliveInterval, out var kaInterval) && kaInterval > TimeSpan.Zero)
+            {
+                configuration.LdapServerKeepAliveInterval = kaInterval;
+            }
+
+            if (int.TryParse(keepAliveRetries, out var kaRetries) && kaRetries > 0)
+            {
+                configuration.LdapServerKeepAliveRetryCount = kaRetries;
             }
             
             configuration.PrivacyModeDescriptor = PrivacyModeDescriptor.Create(privacyMode);
